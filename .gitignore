@@ -1,0 +1,8 @@
+# Visual Studio Code folder
+.vscode
+
+# bin folder
+bin
+
+# obj folder
+obj
