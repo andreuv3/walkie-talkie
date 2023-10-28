@@ -2,6 +2,6 @@
 {
     public class ChatRequest
     {
-        public string Username { get; set; }
+        public string From { get; set; }
     }
 }

@@ -31,12 +31,15 @@ namespace WalkieTalkie.UI
 
         public void ShowMenu()
         {
-            Console.WriteLine("1. Solicitar conversa com um usuário");
-            Console.WriteLine("2. Gerenciar solicitações de mensagem");
-            Console.WriteLine("3. Enviar uma mensagem");
-            Console.WriteLine("4. Participar de um grupo");
-            Console.WriteLine("5. Enviar uma mensagem em grupo");
-            Console.WriteLine("6. Sair");
+            Console.WriteLine("1. Visualizar usuários");
+            Console.WriteLine("2. Solicitar conversa com um usuário");
+            Console.WriteLine("3. Gerenciar solicitações de mensagem");
+            Console.WriteLine("4. Enviar uma mensagem");
+            Console.WriteLine("5. Visualizar grupos");
+            Console.WriteLine("6. Criar grupo");
+            Console.WriteLine("7. Participar de um grupo");
+            Console.WriteLine("8. Enviar uma mensagem em grupo");
+            Console.WriteLine("0. Sair");
         }
 
         public ChatAction RequestAction()
@@ -45,23 +48,23 @@ namespace WalkieTalkie.UI
             bool validOption = false;
             while (!validOption)
             {
-                Console.Write(":");
+                Console.Write(": ");
                 string? optionAsText = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(optionAsText))
                 {
-                    Console.WriteLine("Você precisa selecionar uma opção.");
+                    Console.WriteLine("Você precisa informar uma opção");
                     continue;
                 }
 
                 if (!int.TryParse(optionAsText, out option))
                 {
-                    Console.WriteLine("A opção precisa ser um número entre 1 e 6");
+                    Console.WriteLine("Opção inválida");
                     continue;
                 }
 
-                if (option < 1 || option > 6)
+                if (option < (int) ChatAction.Exit || option > (int) ChatAction.SendGroupMessage)
                 {
-                    Console.WriteLine("A opção precisa ser um número entre 1 e 6");
+                    Console.WriteLine("Opção inválida");
                     continue;
                 }
                 

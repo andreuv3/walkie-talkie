@@ -2,12 +2,15 @@
 {
     public enum ChatAction
     {
-        Initial,
+        Initial = -1,
+        Exit,
+        ListUsers,
         RequestChat,
         ManageChatRequests,
         SendMessage,
+        ListGroups,
+        CreateGroup,
         JoinGroup,
-        SendGroupMessage,
-        Exit
+        SendGroupMessage
     }
 }
