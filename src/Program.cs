@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using WalkieTalkie.Broker;
 using WalkieTalkie.Chat;
 using WalkieTalkie.UI;
 
@@ -12,8 +13,16 @@ try
     ui.ShowTitle();
     string username = ui.RequestUsername();
 
-    var chat = new Chat();
+    var mosquittoConfiguration = configuration.GetRequiredSection("Mosquitto");
+    string host = mosquittoConfiguration["Host"]!;
+    int port = int.Parse(mosquittoConfiguration["Port"]!);
+    int qos = int.Parse(mosquittoConfiguration["Qos"]!);
+    int timeout = int.Parse(mosquittoConfiguration["Timeout"]!);
+    var client = await BrokerFactory.BuildFromConfiguration(host, port, qos, timeout);
+
+    var chat = new Chat(client);
     chat.SetUsername(username);
+    await chat.GoOnline();
 
     var option = ChatAction.Initial;
     while (option != ChatAction.Exit)
@@ -23,6 +32,7 @@ try
         switch (option)
         {
             case ChatAction.RequestChat:
+                await chat.RequestChat();
                 break;
             case ChatAction.ManageChatRequests:
                 break;
@@ -34,6 +44,8 @@ try
                 break;
         }
     }
+
+    await chat.GoOffline();
 }
 catch (Exception ex)
 {
