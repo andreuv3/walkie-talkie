@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using MQTTnet.Client;
+using uPLibrary.Networking.M2Mqtt;
 using WalkieTalkie.Chat.Messages;
 
 namespace WalkieTalkie.Chat
@@ -11,12 +10,13 @@ namespace WalkieTalkie.Chat
         private const string UsersTopic = "USERS";
         private const string ControlTopicSuffix = "CONTROL";
 
-        private readonly IMqttClient _client;
+        private readonly MqttClient _client;
         private string _username;
 
-        public Chat(IMqttClient client)
+        public Chat(string host, int port, int qos, int timeout)
         {
-            _client = client;
+            _client = new MqttClient(host, port, false, null, null, MqttSslProtocols.None);
+            _username = string.Empty;
         }
 
         public void SetUsername(string username)
@@ -24,21 +24,31 @@ namespace WalkieTalkie.Chat
             _username = username;
         }
 
-        public async Task GoOnline()
+        public void Connect()
+        {
+            _client.Connect(_username);
+        }
+
+        public void Disconnect()
+        {
+            _client.Disconnect();
+        }
+
+        public void GoOnline()
         {
             var message = new UserStatus { Username = _username, IsOnline = true };
             var payload = BuildPayload(message);
-            await _client.PublishBinaryAsync(UsersTopic, payload);
+            _client.Publish(UsersTopic, payload);
         }
 
-        public async Task GoOffline()
+        public void GoOffline()
         {
             var message = new UserStatus { Username = _username, IsOnline = false };
             var payload = BuildPayload(message);
-            await _client.PublishBinaryAsync(UsersTopic, payload);
+            _client.Publish(UsersTopic, payload);
         }
 
-        public async Task RequestChat()
+        public void RequestChat()
         {
             string? recipient = null;
             while (string.IsNullOrWhiteSpace(recipient))
@@ -54,7 +64,7 @@ namespace WalkieTalkie.Chat
             string topic = $"{recipient}_{ControlTopicSuffix}";
             var message = new ChatRequest { Username = _username };
             var payload = BuildPayload(message);
-            await _client.PublishBinaryAsync(topic, payload);
+            _client.Publish(topic, payload);
         }
 
         private byte[] BuildPayload(object message)

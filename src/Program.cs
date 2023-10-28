@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Configuration;
-using WalkieTalkie.Broker;
 using WalkieTalkie.Chat;
 using WalkieTalkie.UI;
 
@@ -18,11 +17,11 @@ try
     int port = int.Parse(mosquittoConfiguration["Port"]!);
     int qos = int.Parse(mosquittoConfiguration["Qos"]!);
     int timeout = int.Parse(mosquittoConfiguration["Timeout"]!);
-    var client = await BrokerFactory.BuildFromConfiguration(host, port, qos, timeout);
 
-    var chat = new Chat(client);
+    var chat = new Chat(host, port, qos, timeout);
     chat.SetUsername(username);
-    await chat.GoOnline();
+    chat.Connect();
+    chat.GoOnline();
 
     var option = ChatAction.Initial;
     while (option != ChatAction.Exit)
@@ -32,7 +31,7 @@ try
         switch (option)
         {
             case ChatAction.RequestChat:
-                await chat.RequestChat();
+                chat.RequestChat();
                 break;
             case ChatAction.ManageChatRequests:
                 break;
@@ -45,7 +44,8 @@ try
         }
     }
 
-    await chat.GoOffline();
+    chat.GoOffline();
+    chat.Disconnect();
 }
 catch (Exception ex)
 {
