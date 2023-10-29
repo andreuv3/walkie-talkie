@@ -10,7 +10,7 @@ namespace WalkieTalkie.Chat
     public class Chat
     {
         private const string UsersTopic = "USERS";
-        private const string ControlTopicSuffix = "CONTROL";
+        private const string ControlTopicSuffix = "_CONTROL";
         private const string GroupsTopic = "GROUPS";
 
         private readonly MqttClient _client;
@@ -33,7 +33,7 @@ namespace WalkieTalkie.Chat
         public void ConnectAs(string username)
         {
             _user.Username = username;
-            _ownControlTopic = $"{_user.Username}_{ControlTopicSuffix}";
+            _ownControlTopic = $"{_user.Username}{ControlTopicSuffix}";
             _client.Connect(_user.Username, "", "", false, 30);
             _client.MqttMsgPublishReceived += (sender, eventArgs) =>
             {
@@ -178,7 +178,7 @@ namespace WalkieTalkie.Chat
             var conversation = new Conversation (_user.Username, to);
             _conversationsDao.AddConversation(conversation);
 
-            string topic = $"{to}_{ControlTopicSuffix}";
+            string topic = $"{to}{ControlTopicSuffix}";
             Publish(topic, conversation);
             Console.WriteLine("Solicitação enviada");
         }
@@ -265,7 +265,7 @@ namespace WalkieTalkie.Chat
                 validOption = true;
             }
 
-            string controlTopic = $"{requestToAccept.From}_{ControlTopicSuffix}";
+            string controlTopic = $"{requestToAccept.From}{ControlTopicSuffix}";
             var conversation = _conversationsDao.FindConversationFrom(requestToAccept.From);
             if (option == 1)
             {
