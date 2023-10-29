@@ -29,9 +29,7 @@ namespace WalkieTalkie.UI
             {
                 int difference = defaultTitleLength - title.Length;
                 int padLength = difference / 2;
-                title = title.PadLeft(padLength, ' ');
-                title = title.PadRight(padLength, ' ');
-                title = title.Length >= defaultTitleLength ? title : title.PadRight(defaultTitleLength, ' ');
+                title = title.PadLeft(padLength + title.Length, ' ');
             }
 
             Console.WriteLine("--------------------------------------");

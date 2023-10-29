@@ -20,7 +20,7 @@ namespace WalkieTalkie.Chat
         private readonly User _user;
         private string _ownControlTopic;
 
-        public Chat(string host, int port, int qos, int timeout)
+        public Chat(string host, int port)
         {
             _client = new MqttClient(host, port, false, null, null, MqttSslProtocols.None);
             _conversationsDao = new ConversationsDao();
@@ -30,14 +30,10 @@ namespace WalkieTalkie.Chat
             _ownControlTopic = string.Empty;
         }
 
-        public void SetUsername(string username)
+        public void ConnectAs(string username)
         {
             _user.Username = username;
             _ownControlTopic = $"{_user.Username}_{ControlTopicSuffix}";
-        }
-
-        public void Connect()
-        {
             _client.Connect(_user.Username, "", "", false, 30);
             _client.MqttMsgPublishReceived += (sender, eventArgs) =>
             {
@@ -127,7 +123,9 @@ namespace WalkieTalkie.Chat
 
         public void SubscribeToBaseTopics()
         {
-            Subscribe(_ownControlTopic, UsersTopic, GroupsTopic);
+            Subscribe(_ownControlTopic);
+            Subscribe(UsersTopic);
+            Subscribe(GroupsTopic);
         }
 
         public void Disconnect()
@@ -335,9 +333,9 @@ namespace WalkieTalkie.Chat
             return Encoding.UTF8.GetBytes(messageAsJson);
         }
 
-        private void Subscribe(params string[] topics)
+        private void Subscribe(string topic)
         {
-            _client.Subscribe(topics, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+            _client.Subscribe(new string[] { topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
         }
     }
 }

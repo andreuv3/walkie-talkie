@@ -8,19 +8,16 @@ try
         .AddJsonFile("appsettings.json", false, false)
         .Build();
 
+    var mosquittoConfiguration = configuration.GetRequiredSection("Mosquitto");
+    string host = mosquittoConfiguration["Host"]!;
+    int port = int.Parse(mosquittoConfiguration["Port"]!);
+
     var ui = new UserInterface();
     ui.ShowTitle();
     string username = ui.RequestUsername();
 
-    var mosquittoConfiguration = configuration.GetRequiredSection("Mosquitto");
-    string host = mosquittoConfiguration["Host"]!;
-    int port = int.Parse(mosquittoConfiguration["Port"]!);
-    int qos = int.Parse(mosquittoConfiguration["Qos"]!);
-    int timeout = int.Parse(mosquittoConfiguration["Timeout"]!);
-
-    var chat = new Chat(host, port, qos, timeout);
-    chat.SetUsername(username);
-    chat.Connect();
+    var chat = new Chat(host, port);
+    chat.ConnectAs(username);
     chat.SubscribeToBaseTopics();
     chat.GoOnline();
 
