@@ -2,6 +2,7 @@
 using System.Text.Json;
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
+using WalkieTalkie.Chat.Data;
 using WalkieTalkie.Chat.Messages;
 
 namespace WalkieTalkie.Chat
@@ -13,18 +14,18 @@ namespace WalkieTalkie.Chat
         private const string GroupsTopic = "GROUPS";
 
         private readonly MqttClient _client;
-        private readonly ICollection<User> _users;
-        private readonly ICollection<Group> _groups;
-        private readonly ICollection<Conversation> _conversations;
+        private readonly ConversationsDao _conversationsDao;
+        private readonly UsersDao _usersDao;
+        private readonly GroupsDao _groupsDao;
         private readonly User _user;
         private string _ownControlTopic;
 
         public Chat(string host, int port, int qos, int timeout)
         {
             _client = new MqttClient(host, port, false, null, null, MqttSslProtocols.None);
-            _users = new HashSet<User>();
-            _groups = new HashSet<Group>();
-            _conversations = new HashSet<Conversation>();
+            _conversationsDao = new ConversationsDao();
+            _usersDao = new UsersDao();
+            _groupsDao = new GroupsDao();
             _user = new User();
             _ownControlTopic = string.Empty;
         }
@@ -65,31 +66,25 @@ namespace WalkieTalkie.Chat
 
         private void HandleOwnControlTopicMessage(string payload)
         {
-            Console.WriteLine("HandleOwnControlTopicMessage");
-            Console.WriteLine(payload);
-            Console.WriteLine("****************************");
             var receivedConversation = JsonSerializer.Deserialize<Conversation>(payload);
             if (receivedConversation == null)
             {
                 return;
             }
 
-            var conversation = _conversations
-                .Where(c => (c.From == receivedConversation.From && c.To == receivedConversation.To) || 
-                            (c.From == receivedConversation.To && c.To == receivedConversation.From))
-                .FirstOrDefault();
-
+            var conversation = _conversationsDao.FindConversation(receivedConversation.From, receivedConversation.To);
             if (conversation == null)
             {
-                _conversations.Add(receivedConversation);
-                if (receivedConversation.Accepted)
-                {
-                    _client.Subscribe(new string[] { receivedConversation.Topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
-                }
+                conversation = receivedConversation;
+                _conversationsDao.AddConversation(conversation);
             }
             else
             {
                 conversation.Accept(receivedConversation.Topic);
+            }
+
+            if (conversation.Accepted)
+            {
                 _client.Subscribe(new string[] { conversation.Topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
             }
         }
@@ -103,10 +98,10 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
-            var user = _users.FirstOrDefault(u => u.Username == receivedUser.Username);
+            var user = _usersDao.FindUser(receivedUser.Username);
             if (user == null)
             {
-                _users.Add(receivedUser);
+                _usersDao.AddUser(receivedUser);
             }
             else
             {
@@ -123,10 +118,10 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
-            var group = _groups.FirstOrDefault(g => g.Name == receivedGroup.Name);
+            var group = _groupsDao.FindGroup(receivedGroup.Name);
             if (group == null)
             {
-                _groups.Add(receivedGroup);
+                _groupsDao.AddGroup(receivedGroup);
             }
         }
 
@@ -169,7 +164,8 @@ namespace WalkieTalkie.Chat
             Console.WriteLine("--------------------------------------");
             Console.WriteLine("               USUÁRIOS               ");
             Console.WriteLine("--------------------------------------");
-            foreach (var user in _users)
+            var users = _usersDao.FindUsers();
+            foreach (var user in users)
             {
                 string status = user.IsOnline ? "online" : "offline";
                 string self = user.Username == _user.Username ? " (você mesmo)" : "";
@@ -203,7 +199,7 @@ namespace WalkieTalkie.Chat
             }
 
             var conversation = new Conversation (_user.Username, to);
-            _conversations.Add(conversation);
+            _conversationsDao.AddConversation(conversation);
 
             string topic = $"{to}_{ControlTopicSuffix}";
             var payload = BuildPayload(conversation);
@@ -220,8 +216,8 @@ namespace WalkieTalkie.Chat
             Console.WriteLine("       SOLICITAÇÕES DE CONVERSA       ");
             Console.WriteLine("--------------------------------------");
 
-            var chatRequests = _conversations.Where(c => !c.Accepted && c.From != _user.Username).ToList();
-            if (chatRequests.Count == 0)
+            var notAcceptedConversations = _conversationsDao.FindNotAcceptedConversations(_user.Username);
+            if (notAcceptedConversations.Count == 0)
             {
                 Console.WriteLine("Você não possui solicitações de novas conversas");
                 Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
@@ -230,9 +226,9 @@ namespace WalkieTalkie.Chat
             }
 
             Console.WriteLine("Você possui as seguintes solicitações de conversa");
-            for (int i = 0; i < chatRequests.Count; i++)
+            for (int i = 0; i < notAcceptedConversations.Count; i++)
             {
-                var request = chatRequests.ElementAt(i);
+                var request = notAcceptedConversations.ElementAt(i);
                 Console.WriteLine($"{i + 1}. Aceitar conversar com {request.From}");
             }
 
@@ -255,7 +251,7 @@ namespace WalkieTalkie.Chat
                     continue;
                 }
 
-                if (option < 0 || option > chatRequests.Count)
+                if (option < 0 || option > notAcceptedConversations.Count)
                 {
                     Console.WriteLine("Opção inválida");
                     continue;
@@ -270,11 +266,11 @@ namespace WalkieTalkie.Chat
             }
 
             int requestIndex = option - 1;
-            var requestToAccept = chatRequests.ElementAt(requestIndex);
+            var requestToAccept = notAcceptedConversations.ElementAt(requestIndex);
             string controlTopic = $"{requestToAccept.From}_{ControlTopicSuffix}";
             string chatTopic = $"{_user.Username}_{requestToAccept.From}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
             
-            var conversation = _conversations.First(c => c.From == requestToAccept.From);
+            var conversation = _conversationsDao.FindConversationFrom(requestToAccept.From);
             conversation.Accept(chatTopic);
 
             var payload = BuildPayload(conversation);
@@ -292,7 +288,7 @@ namespace WalkieTalkie.Chat
             Console.WriteLine("              CONVERSAS               ");
             Console.WriteLine("--------------------------------------");
 
-            var conversations = _conversations.Where(c => c.Accepted).ToList();
+            var conversations = _conversationsDao.FindAcceptedConversations();
             if (conversations.Count == 0)
             {
                 Console.WriteLine("Você ainda não possui conversas");
@@ -322,7 +318,8 @@ namespace WalkieTalkie.Chat
             Console.WriteLine("--------------------------------------");
             Console.WriteLine("               USUÁRIOS               ");
             Console.WriteLine("--------------------------------------");
-            if (_groups.Count == 0)
+            var groups = _groupsDao.FindGroups();
+            if (groups.Count == 0)
             {
                 Console.WriteLine("Nenhum grupo encontrado");
                 Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
@@ -330,7 +327,7 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
-            foreach (var group in _groups)
+            foreach (var group in groups)
             {
                 string membership = "";
                 if (group.IsMember(_user))
@@ -358,9 +355,11 @@ namespace WalkieTalkie.Chat
                 if (string.IsNullOrWhiteSpace(groupName))
                 {
                     Console.WriteLine("Você precisa informar o nome do grupo");
+                    continue;
                 }
 
-                if (_groups.Any(g => g.Name == groupName))
+                bool groupAlreadyExists = _groupsDao.GroupAlreadyExists(groupName);
+                if (groupAlreadyExists)
                 {
                     Console.WriteLine("Já existe um grupo com este nome, tente novamente");
                     groupName = null;
