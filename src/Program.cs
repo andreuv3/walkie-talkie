@@ -21,9 +21,7 @@ try
     var chat = new Chat(host, port, qos, timeout);
     chat.SetUsername(username);
     chat.Connect();
-    chat.SubscribeToOwnTopic();
-    chat.SubscribteToUsersTopic();
-    chat.SubscribeToGroupsTopic();
+    chat.SubscribeToBaseTopics();
     chat.GoOnline();
 
     var option = ChatAction.Initial;
@@ -34,22 +32,33 @@ try
         switch (option)
         {
             case ChatAction.ListUsers:
+                ui.ShowTitle("USUÁRIOS");
                 chat.ListUsers();
+                ui.ShowGoBackMessage();
                 break;
             case ChatAction.RequestChat:
+                ui.ShowTitle("SOLICITAÇÃO DE CONVERSA");
                 chat.RequestChat();
-                break;
-            case ChatAction.ManageChatRequests:
-                chat.ManageChatRequests();
+                ui.ShowGoBackMessage();
                 break;
             case ChatAction.SendMessage:
+                ui.ShowTitle("CONVERSAS");
                 chat.SendMessage();
                 break;
+            case ChatAction.ManageChatRequests:
+                ui.ShowTitle("SOLICITAÇÕES DE CONVERSA");
+                chat.ManageChatRequests();
+                ui.ShowGoBackMessage();
+                break;
             case ChatAction.ListGroups:
+                ui.ShowTitle("GRUPOS");
                 chat.ListGroups();
+                ui.ShowGoBackMessage("Grupo criado");
                 break;
             case ChatAction.CreateGroup:
+                ui.ShowTitle("CRIAR GRUPO");
                 chat.CreateGroup();
+                ui.ShowGoBackMessage("Grupo criado");
                 break;
             case ChatAction.JoinGroup:
                 break;

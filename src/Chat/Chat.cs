@@ -125,6 +125,11 @@ namespace WalkieTalkie.Chat
             }
         }
 
+        public void SubscribeToBaseTopics()
+        {
+            Subscribe(_ownControlTopic, UsersTopic, GroupsTopic);
+        }
+
         public void Disconnect()
         {
             _client.Disconnect();
@@ -133,54 +138,28 @@ namespace WalkieTalkie.Chat
         public void GoOnline()
         {
             _user.GoOnline();
-            var payload = BuildPayload(_user);
-            _client.Publish(UsersTopic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
+            Publish(UsersTopic, _user);
         }
 
         public void GoOffline()
         {
             _user.GoOffline();
-            var payload = BuildPayload(_user);
-            _client.Publish(UsersTopic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
+            Publish(UsersTopic, _user);
         }
-
-        public void SubscribeToOwnTopic()
-        {
-            _client.Subscribe(new string[] { _ownControlTopic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
-        }
-
-        public void SubscribteToUsersTopic()
-        {
-            _client.Subscribe(new string[] { UsersTopic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
-        }
-
-        public void SubscribeToGroupsTopic()
-        {
-            _client.Subscribe(new string[] { GroupsTopic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
-        } 
 
         public void ListUsers()
         {
-            Console.WriteLine("--------------------------------------");
-            Console.WriteLine("               USUÁRIOS               ");
-            Console.WriteLine("--------------------------------------");
             var users = _usersDao.FindUsers();
             foreach (var user in users)
             {
                 string status = user.IsOnline ? "online" : "offline";
                 string self = user.Username == _user.Username ? " (você mesmo)" : "";
                 Console.WriteLine($"{user.Username} está {status}{self}");
-            }
-            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
-            Console.ReadKey();
+            }   
         }
 
         public void RequestChat()
         {
-            Console.WriteLine("--------------------------------------");
-            Console.WriteLine("       SOLICITAÇÃO DE CONVERSA        ");
-            Console.WriteLine("--------------------------------------");
-
             string? to = null;
             while (string.IsNullOrWhiteSpace(to))
             {
@@ -202,26 +181,16 @@ namespace WalkieTalkie.Chat
             _conversationsDao.AddConversation(conversation);
 
             string topic = $"{to}_{ControlTopicSuffix}";
-            var payload = BuildPayload(conversation);
-            _client.Publish(topic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
-
+            Publish(topic, conversation);
             Console.WriteLine("Solicitação enviada");
-            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
-            Console.ReadKey();
         }
 
         public void ManageChatRequests()
         {
-            Console.WriteLine("--------------------------------------");
-            Console.WriteLine("       SOLICITAÇÕES DE CONVERSA       ");
-            Console.WriteLine("--------------------------------------");
-
             var notAcceptedConversations = _conversationsDao.FindNotAcceptedConversations(_user.Username);
             if (notAcceptedConversations.Count == 0)
             {
                 Console.WriteLine("Você não possui solicitações de novas conversas");
-                Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
-                Console.ReadKey();
                 return;
             }
 
@@ -273,27 +242,18 @@ namespace WalkieTalkie.Chat
             var conversation = _conversationsDao.FindConversationFrom(requestToAccept.From);
             conversation.Accept(chatTopic);
 
-            var payload = BuildPayload(conversation);
-            _client.Publish(controlTopic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
-            _client.Subscribe(new string[] { conversation.Topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
-            
+            Publish(controlTopic, conversation);
+            Subscribe(conversation.Topic!);
+
             Console.WriteLine($"Solicitação de {requestToAccept.From} aceita, vocês já podem iniciar uma conversa");
-            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
-            Console.ReadKey();
         }
 
         public void SendMessage()
         {
-            Console.WriteLine("--------------------------------------");
-            Console.WriteLine("              CONVERSAS               ");
-            Console.WriteLine("--------------------------------------");
-
             var conversations = _conversationsDao.FindAcceptedConversations();
             if (conversations.Count == 0)
             {
                 Console.WriteLine("Você ainda não possui conversas");
-                Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
-                Console.ReadKey();
                 return;
             }
 
@@ -315,15 +275,10 @@ namespace WalkieTalkie.Chat
 
         public void ListGroups()
         {
-            Console.WriteLine("--------------------------------------");
-            Console.WriteLine("               USUÁRIOS               ");
-            Console.WriteLine("--------------------------------------");
             var groups = _groupsDao.FindGroups();
             if (groups.Count == 0)
             {
                 Console.WriteLine("Nenhum grupo encontrado");
-                Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
-                Console.ReadKey();
                 return;
             }
 
@@ -341,8 +296,6 @@ namespace WalkieTalkie.Chat
                 
                 Console.WriteLine($"{group.Name} [líder: {group.Leader.Username}{membership}]");
             }
-            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
-            Console.ReadKey();
         }
 
         public void CreateGroup()
@@ -366,17 +319,25 @@ namespace WalkieTalkie.Chat
                 }
             }
 
-            var message = new Group { Name = groupName, Leader = _user, Members = new HashSet<User>() };
-            var payload = BuildPayload(message);
-            _client.Publish(GroupsTopic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
+            var group = new Group { Name = groupName, Leader = _user, Members = new HashSet<User>() };
+            Publish(GroupsTopic, group);
+        }
 
-            Console.WriteLine("Grupo criado");
+        private void Publish(string topic, object message)
+        {
+            var payload = BuildPayload(message);
+            _client.Publish(topic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
         }
 
         private byte[] BuildPayload(object message)
         {
             string messageAsJson = JsonSerializer.Serialize(message);
             return Encoding.UTF8.GetBytes(messageAsJson);
+        }
+
+        private void Subscribe(params string[] topics)
+        {
+            _client.Subscribe(topics, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
         }
     }
 }

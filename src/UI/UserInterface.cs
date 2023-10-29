@@ -22,11 +22,32 @@ namespace WalkieTalkie.UI
             return username;
         }
 
-        public void ShowTitle()
+        public void ShowTitle(string title = "WALKIE TALKIE")
         {
+            int defaultTitleLength = 38;
+            if (title.Length < 38)
+            {
+                int difference = defaultTitleLength - title.Length;
+                int padLength = difference / 2;
+                title = title.PadLeft(padLength, ' ');
+                title = title.PadRight(padLength, ' ');
+                title = title.Length >= defaultTitleLength ? title : title.PadRight(defaultTitleLength, ' ');
+            }
+
             Console.WriteLine("--------------------------------------");
-            Console.WriteLine("             WALKIE TALKIE            ");
+            Console.WriteLine(title);
             Console.WriteLine("--------------------------------------");
+        }
+
+        public void ShowGoBackMessage(string? message = null)
+        {
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                Console.WriteLine(message);
+            }
+
+            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
+            Console.ReadKey();
         }
 
         public void ShowMenu()
@@ -34,8 +55,8 @@ namespace WalkieTalkie.UI
             ShowTitle();
             Console.WriteLine("1. Visualizar usuários");
             Console.WriteLine("2. Solicitar conversa com um usuário");
-            Console.WriteLine("3. Gerenciar conversas");
-            Console.WriteLine("4. Conversar com um usuário");
+            Console.WriteLine("3. Conversar com um usuário");
+            Console.WriteLine("4. Gerenciar conversas");
             Console.WriteLine("5. Visualizar grupos");
             Console.WriteLine("6. Criar grupo");
             Console.WriteLine("7. Participar de um grupo");
