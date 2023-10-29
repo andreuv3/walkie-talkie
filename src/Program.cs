@@ -43,6 +43,7 @@ try
                 chat.ManageChatRequests();
                 break;
             case ChatAction.SendMessage:
+                chat.SendMessage();
                 break;
             case ChatAction.ListGroups:
                 chat.ListGroups();
@@ -54,7 +55,8 @@ try
                 break;
             case ChatAction.SendGroupMessage:
                 break;
-            
+            case ChatAction.ManagetGroupRequests:
+                break;
         }
     }
 

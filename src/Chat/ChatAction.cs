@@ -11,6 +11,7 @@
         ListGroups,
         CreateGroup,
         JoinGroup,
-        SendGroupMessage
+        SendGroupMessage,
+        ManagetGroupRequests
     }
 }

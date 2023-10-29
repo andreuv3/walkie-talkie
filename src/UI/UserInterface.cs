@@ -31,14 +31,16 @@ namespace WalkieTalkie.UI
 
         public void ShowMenu()
         {
+            ShowTitle();
             Console.WriteLine("1. Visualizar usuários");
             Console.WriteLine("2. Solicitar conversa com um usuário");
-            Console.WriteLine("3. Gerenciar solicitações de mensagem");
-            Console.WriteLine("4. Enviar uma mensagem");
+            Console.WriteLine("3. Gerenciar conversas");
+            Console.WriteLine("4. Conversar com um usuário");
             Console.WriteLine("5. Visualizar grupos");
             Console.WriteLine("6. Criar grupo");
             Console.WriteLine("7. Participar de um grupo");
-            Console.WriteLine("8. Enviar uma mensagem em grupo");
+            Console.WriteLine("8. Conversar em um grupo");
+            Console.WriteLine("9. Gerenciar grupos");
             Console.WriteLine("0. Sair");
         }
 
@@ -62,7 +64,7 @@ namespace WalkieTalkie.UI
                     continue;
                 }
 
-                if (option < (int) ChatAction.Exit || option > (int) ChatAction.SendGroupMessage)
+                if (option < (int) ChatAction.Exit || option > (int) ChatAction.ManagetGroupRequests)
                 {
                     Console.WriteLine("Opção inválida");
                     continue;

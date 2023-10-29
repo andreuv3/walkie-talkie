@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using uPLibrary.Networking.M2Mqtt;
 using uPLibrary.Networking.M2Mqtt.Messages;
@@ -14,18 +13,18 @@ namespace WalkieTalkie.Chat
         private const string GroupsTopic = "GROUPS";
 
         private readonly MqttClient _client;
-        private readonly ICollection<ChatRequest> _chatRequests;
         private readonly ICollection<User> _users;
         private readonly ICollection<Group> _groups;
+        private readonly ICollection<Conversation> _conversations;
         private readonly User _user;
         private string _ownControlTopic;
 
         public Chat(string host, int port, int qos, int timeout)
         {
             _client = new MqttClient(host, port, false, null, null, MqttSslProtocols.None);
-            _chatRequests = new HashSet<ChatRequest>();
             _users = new HashSet<User>();
             _groups = new HashSet<Group>();
+            _conversations = new HashSet<Conversation>();
             _user = new User();
             _ownControlTopic = string.Empty;
         }
@@ -42,6 +41,11 @@ namespace WalkieTalkie.Chat
             _client.MqttMsgPublishReceived += (sender, eventArgs) =>
             {
                 var payload = UTF8Encoding.UTF8.GetString(eventArgs.Message);
+                if (string.IsNullOrWhiteSpace(payload))
+                {
+                    return;
+                }
+
                 if (eventArgs.Topic == _ownControlTopic)
                 {
                     HandleOwnControlTopicMessage(payload);
@@ -61,16 +65,32 @@ namespace WalkieTalkie.Chat
 
         private void HandleOwnControlTopicMessage(string payload)
         {
-            var chatRequest = JsonSerializer.Deserialize<ChatRequest>(payload);
-
-            if (chatRequest == null)
+            Console.WriteLine("HandleOwnControlTopicMessage");
+            Console.WriteLine(payload);
+            Console.WriteLine("****************************");
+            var receivedConversation = JsonSerializer.Deserialize<Conversation>(payload);
+            if (receivedConversation == null)
             {
                 return;
             }
 
-            if (!_chatRequests.Any(req => req.From == chatRequest.From))
+            var conversation = _conversations
+                .Where(c => (c.From == receivedConversation.From && c.To == receivedConversation.To) || 
+                            (c.From == receivedConversation.To && c.To == receivedConversation.From))
+                .FirstOrDefault();
+
+            if (conversation == null)
             {
-                _chatRequests.Add(chatRequest);
+                _conversations.Add(receivedConversation);
+                if (receivedConversation.Accepted)
+                {
+                    _client.Subscribe(new string[] { receivedConversation.Topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+                }
+            }
+            else
+            {
+                conversation.Accept(receivedConversation.Topic);
+                _client.Subscribe(new string[] { conversation.Topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
             }
         }
 
@@ -146,53 +166,77 @@ namespace WalkieTalkie.Chat
 
         public void ListUsers()
         {
-            Console.WriteLine("Usuários");
+            Console.WriteLine("--------------------------------------");
+            Console.WriteLine("               USUÁRIOS               ");
+            Console.WriteLine("--------------------------------------");
             foreach (var user in _users)
             {
                 string status = user.IsOnline ? "online" : "offline";
                 string self = user.Username == _user.Username ? " (você mesmo)" : "";
                 Console.WriteLine($"{user.Username} está {status}{self}");
             }
+            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
+            Console.ReadKey();
         }
 
         public void RequestChat()
         {
-            string? recipient = null;
-            while (string.IsNullOrWhiteSpace(recipient))
+            Console.WriteLine("--------------------------------------");
+            Console.WriteLine("       SOLICITAÇÃO DE CONVERSA        ");
+            Console.WriteLine("--------------------------------------");
+
+            string? to = null;
+            while (string.IsNullOrWhiteSpace(to))
             {
                 Console.Write("Para quem você deseja enviar a mensagem? ");
-                recipient = Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(recipient))
+                to = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(to))
                 {
                     Console.WriteLine("Você precisa informar para quem deseja enviar a mensagem");
                 }
+
+                if (to == _user.Username)
+                {
+                    Console.WriteLine("Você não pode enviar uma mensagem para si mesmo");
+                    to = null;
+                }
             }
 
-            string topic = $"{recipient}_{ControlTopicSuffix}";
-            var message = new ChatRequest { From = _user.Username };
-            var payload = BuildPayload(message);
+            var conversation = new Conversation (_user.Username, to);
+            _conversations.Add(conversation);
+
+            string topic = $"{to}_{ControlTopicSuffix}";
+            var payload = BuildPayload(conversation);
             _client.Publish(topic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
 
             Console.WriteLine("Solicitação enviada");
+            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
+            Console.ReadKey();
         }
 
         public void ManageChatRequests()
         {
-            if (_chatRequests.Count == 0)
+            Console.WriteLine("--------------------------------------");
+            Console.WriteLine("       SOLICITAÇÕES DE CONVERSA       ");
+            Console.WriteLine("--------------------------------------");
+
+            var chatRequests = _conversations.Where(c => !c.Accepted && c.From != _user.Username).ToList();
+            if (chatRequests.Count == 0)
             {
                 Console.WriteLine("Você não possui solicitações de novas conversas");
+                Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
+                Console.ReadKey();
                 return;
             }
 
             Console.WriteLine("Você possui as seguintes solicitações de conversa");
-            for (int i = 0; i < _chatRequests.Count; i++)
+            for (int i = 0; i < chatRequests.Count; i++)
             {
-                var request = _chatRequests.ElementAt(i);
-                Console.WriteLine($"{i + 1} - {request.From} deseja iniciar uma conversa");
+                var request = chatRequests.ElementAt(i);
+                Console.WriteLine($"{i + 1}. Aceitar conversar com {request.From}");
             }
 
-            Console.WriteLine("0 - Voltar para o menu principal");
-            Console.WriteLine("Digite o número da solicitação que deseja aceitar ou zero para voltar ao menu principal");
+            Console.WriteLine("0. Voltar para o menu principal");
             int option = -1;
             bool validOption = false;
             while (!validOption)
@@ -211,7 +255,7 @@ namespace WalkieTalkie.Chat
                     continue;
                 }
 
-                if (option < 0 || option > _chatRequests.Count)
+                if (option < 0 || option > chatRequests.Count)
                 {
                     Console.WriteLine("Opção inválida");
                     continue;
@@ -226,15 +270,63 @@ namespace WalkieTalkie.Chat
             }
 
             int requestIndex = option - 1;
-            var selectedRequest = _chatRequests.ElementAt(requestIndex);
-            Console.WriteLine($"Aceitando solicitação de {selectedRequest.From}");
+            var requestToAccept = chatRequests.ElementAt(requestIndex);
+            string controlTopic = $"{requestToAccept.From}_{ControlTopicSuffix}";
+            string chatTopic = $"{_user.Username}_{requestToAccept.From}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+            
+            var conversation = _conversations.First(c => c.From == requestToAccept.From);
+            conversation.Accept(chatTopic);
+
+            var payload = BuildPayload(conversation);
+            _client.Publish(controlTopic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
+            _client.Subscribe(new string[] { conversation.Topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+            
+            Console.WriteLine($"Solicitação de {requestToAccept.From} aceita, vocês já podem iniciar uma conversa");
+            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
+            Console.ReadKey();
+        }
+
+        public void SendMessage()
+        {
+            Console.WriteLine("--------------------------------------");
+            Console.WriteLine("              CONVERSAS               ");
+            Console.WriteLine("--------------------------------------");
+
+            var conversations = _conversations.Where(c => c.Accepted).ToList();
+            if (conversations.Count == 0)
+            {
+                Console.WriteLine("Você ainda não possui conversas");
+                Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
+                Console.ReadKey();
+                return;
+            }
+
+            foreach (var conversation in conversations)
+            {
+                Console.WriteLine($"*** Conversa com {conversation.With(_user.Username)} ***");
+                var lastMessage = conversation.LastMessage;
+                if (lastMessage == null)
+                {
+                    Console.WriteLine("    Nenhuma mensagem nesta conversa");
+                }
+                else
+                {
+                    Console.WriteLine($"    {lastMessage.FormattedSendedAt}");
+                    Console.WriteLine($"    {lastMessage.Content}");
+                }
+            }
         }
 
         public void ListGroups()
         {
+            Console.WriteLine("--------------------------------------");
+            Console.WriteLine("               USUÁRIOS               ");
+            Console.WriteLine("--------------------------------------");
             if (_groups.Count == 0)
             {
                 Console.WriteLine("Nenhum grupo encontrado");
+                Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
+                Console.ReadKey();
                 return;
             }
 
@@ -250,8 +342,10 @@ namespace WalkieTalkie.Chat
                     membership = " (você é líder deste grupo)";
                 }
                 
-                Console.WriteLine($"{group.Name} - Líder: {group.Leader.Username}{membership}");
+                Console.WriteLine($"{group.Name} [líder: {group.Leader.Username}{membership}]");
             }
+            Console.WriteLine("Pressione qualquer tecla para voltar ao menu principal");
+            Console.ReadKey();
         }
 
         public void CreateGroup()
