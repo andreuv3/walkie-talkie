@@ -74,14 +74,14 @@ namespace WalkieTalkie.Chat
                 conversation = receivedConversation;
                 _conversationsDao.AddConversation(conversation);
             }
-            else
+            else if (receivedConversation.Accepted)
             {
                 conversation.Accept(receivedConversation.Topic);
+                Subscribe(conversation.Topic);
             }
-
-            if (conversation.Accepted)
+            else
             {
-                _client.Subscribe(new string[] { conversation.Topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+                _conversationsDao.RemoveConversation(conversation);
             }
         }
 
@@ -196,7 +196,7 @@ namespace WalkieTalkie.Chat
             for (int i = 0; i < notAcceptedConversations.Count; i++)
             {
                 var request = notAcceptedConversations.ElementAt(i);
-                Console.WriteLine($"{i + 1}. Aceitar conversar com {request.From}");
+                Console.WriteLine($"{i + 1}. Gerenciar conversa com {request.From}");
             }
 
             Console.WriteLine("0. Voltar para o menu principal");
@@ -234,16 +234,55 @@ namespace WalkieTalkie.Chat
 
             int requestIndex = option - 1;
             var requestToAccept = notAcceptedConversations.ElementAt(requestIndex);
+
+            Console.WriteLine($"Você deseja aceitar a conversa com {requestToAccept.From}?");
+            Console.WriteLine("1. Sim");
+            Console.WriteLine("2. Não");
+            option = -1;
+            validOption = false;
+            while (!validOption)
+            {
+                Console.Write(": ");
+                string? optionAsText = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(optionAsText))
+                {
+                    Console.WriteLine("Você precisa selecionar uma opção.");
+                    continue;
+                }
+
+                if (!int.TryParse(optionAsText, out option))
+                {
+                    Console.WriteLine("Opção inválida");
+                    continue;
+                }
+
+                if (option < 1 || option > 2)
+                {
+                    Console.WriteLine("Opção inválida");
+                    continue;
+                }
+                
+                validOption = true;
+            }
+
             string controlTopic = $"{requestToAccept.From}_{ControlTopicSuffix}";
-            string chatTopic = $"{_user.Username}_{requestToAccept.From}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
-            
             var conversation = _conversationsDao.FindConversationFrom(requestToAccept.From);
-            conversation.Accept(chatTopic);
+            if (option == 1)
+            {
+                string chatTopic = $"{_user.Username}_{requestToAccept.From}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
+                
+                conversation.Accept(chatTopic);
 
-            Publish(controlTopic, conversation);
-            Subscribe(conversation.Topic!);
+                Publish(controlTopic, conversation);
+                Subscribe(conversation.Topic!);
 
-            Console.WriteLine($"Solicitação de {requestToAccept.From} aceita, vocês já podem iniciar uma conversa");
+                Console.WriteLine($"Solicitação de {requestToAccept.From} aceita, vocês já podem iniciar uma conversa");
+            }
+            else
+            {
+                _conversationsDao.RemoveConversation(conversation);
+                Publish(controlTopic, conversation);
+            }
         }
 
         public void SendMessage()
@@ -291,8 +330,17 @@ namespace WalkieTalkie.Chat
                 {
                     membership = " (você é líder deste grupo)";
                 }
+
+                Console.WriteLine($"Grupo: {group.Name}{membership}");
+                Console.WriteLine("Membros:");
+                Console.WriteLine($" - {group.Leader.Username} (líder)");
                 
-                Console.WriteLine($"{group.Name} [líder: {group.Leader.Username}{membership}]");
+                foreach (var member in group.Members.OrderBy(m => m.Username))
+                {
+                    Console.WriteLine($"{member.Username}");
+                }
+
+                Console.WriteLine("--------------------------------------");
             }
         }
 
@@ -324,7 +372,7 @@ namespace WalkieTalkie.Chat
         private void Publish(string topic, object message)
         {
             var payload = BuildPayload(message);
-            _client.Publish(topic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, true);
+            _client.Publish(topic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, false);
         }
 
         private byte[] BuildPayload(object message)

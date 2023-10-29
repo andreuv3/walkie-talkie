@@ -37,5 +37,10 @@ namespace WalkieTalkie.Chat.Data
         {
             return _conversations.Where(c => c.Accepted).ToList();
         }
+
+        public void RemoveConversation(Conversation conversation)
+        {
+            _conversations.Remove(conversation);
+        }
     }
 }

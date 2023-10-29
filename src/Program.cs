@@ -50,7 +50,7 @@ try
             case ChatAction.ListGroups:
                 ui.ShowTitle("GRUPOS");
                 chat.ListGroups();
-                ui.ShowGoBackMessage("Grupo criado");
+                ui.ShowGoBackMessage();
                 break;
             case ChatAction.CreateGroup:
                 ui.ShowTitle("CRIAR GRUPO");
