@@ -61,7 +61,7 @@ Onde ```<conversation_topic>``` é o nome do tópico gerado por X para que ambos
 
 ### Tópico de usuários
 
-Foi definido um tópico chamado ```USERS``` o qual receberá mensagens que indicam o status (online ou offline) de um usuário. As mensagens publicadas no tópico ```USERS``` possuem o seguinte formato:
+Cada usuário publicará seu estado em um subtópico chamado ```USERS/<username>``` (onde ```<username>``` é o nome do usuário) o qual receberá mensagens que indicam o status (online ou offline) de um usuário. As mensagens publicadas no tópico ```USERS/<username>``` possuem o seguinte formato:
 
 ```
 { 
@@ -72,7 +72,7 @@ Foi definido um tópico chamado ```USERS``` o qual receberá mensagens que indic
 
 ### Tópico de grupos
 
-Foi definido um tópico chamado ```GROUPS``` o qual receberá mensagens que representam a estrutura de um grupo: seu nome, seu líder e seus membros. As mensagens publicadas no tópico ```GROUPS``` possuem o seguinte formato:
+Cada grupo publicará seu estado em um subtópico ```GROUPS/<name>``` (onde ```<name>``` é o nome do grupo) o qual receberá mensagens que representam a estrutura de um grupo: seu nome, seu líder e seus membros. As mensagens publicadas no tópico ```GROUPS/<name>``` possuem o seguinte formato:
 
 ```
 { 
