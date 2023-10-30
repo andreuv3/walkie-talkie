@@ -4,6 +4,13 @@ namespace WalkieTalkie.UI
 {
     public class UserInterface
     {
+        private readonly bool _debug;
+
+        public UserInterface(bool debug)
+        {
+            _debug = debug;
+        }
+
         public string RequestUsername()
         {
             string? username = null;
@@ -60,6 +67,10 @@ namespace WalkieTalkie.UI
             Console.WriteLine("7. Participar de um grupo");
             Console.WriteLine("8. Conversar em um grupo");
             Console.WriteLine("9. Gerenciar grupos");
+            if (_debug)
+            {
+                Console.WriteLine("-2. Visualizar logs");
+            }
             Console.WriteLine("0. Sair");
         }
 
@@ -81,6 +92,11 @@ namespace WalkieTalkie.UI
                 {
                     Console.WriteLine("Opção inválida");
                     continue;
+                }
+
+                if (_debug && (option == -1 || option == -2))
+                {
+                    return (ChatAction) option;
                 }
 
                 if (option < (int) ChatAction.Exit || option > (int) ChatAction.ManagetGroupRequests)

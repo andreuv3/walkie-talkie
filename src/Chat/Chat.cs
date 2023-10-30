@@ -17,17 +17,21 @@ namespace WalkieTalkie.Chat
         private readonly ConversationsDao _conversationsDao;
         private readonly UsersDao _usersDao;
         private readonly GroupsDao _groupsDao;
+        private readonly bool _debug;
         private readonly User _user;
         private string _ownControlTopic;
+        private readonly ICollection<string> _logs;
 
-        public Chat(string host, int port)
+        public Chat(string host, int port, bool debug)
         {
             _client = new MqttClient(host, port, false, null, null, MqttSslProtocols.None);
             _conversationsDao = new ConversationsDao();
             _usersDao = new UsersDao();
             _groupsDao = new GroupsDao();
+            _debug = debug;
             _user = new User();
             _ownControlTopic = string.Empty;
+            _logs = new List<string>();
         }
 
         public void ConnectAs(string username)
@@ -75,15 +79,21 @@ namespace WalkieTalkie.Chat
             {
                 conversation = receivedConversation;
                 _conversationsDao.AddConversation(conversation);
+                if (_debug)
+                {
+                    _logs.Add($"Solicitação de conversa recebida de {conversation.From} no tóico {_user.Username}{ControlTopicSuffix}");
+                }
             }
             else if (receivedConversation.Accepted)
             {
                 conversation.Accept(receivedConversation.Topic);
                 Subscribe(conversation.Topic);
+                _logs.Add($"Solicitação de conversa aceita por {conversation.To} através do tópico {conversation.Topic}");
             }
             else
             {
                 _conversationsDao.RemoveConversation(conversation);
+                _logs.Add($"Solicitação de conversa recusada por {conversation.To}");
             }
         }
 
@@ -184,6 +194,12 @@ namespace WalkieTalkie.Chat
 
             string topic = $"{to}{ControlTopicSuffix}";
             Publish(topic, conversation);
+
+            if (_debug)
+            {
+                _logs.Add($"{_user.Username} enviou uma solicitação para {to} através do tópico {topic}");
+            }
+
             Console.WriteLine("Solicitação enviada");
         }
 
@@ -280,12 +296,21 @@ namespace WalkieTalkie.Chat
                 Publish(controlTopic, conversation);
                 Subscribe(conversation.Topic!);
 
+                if (_debug)
+                {
+                    _logs.Add($"{_user.Username} aceitou conversar com {requestToAccept.From} através do tópico {chatTopic}");
+                }
+
                 Console.WriteLine($"Solicitação de {requestToAccept.From} aceita, vocês já podem iniciar uma conversa");
             }
             else
             {
                 _conversationsDao.RemoveConversation(conversation);
                 Publish(controlTopic, conversation);
+                if (_debug)
+                {
+                    _logs.Add($"{_user.Username} recusou conversar com {requestToAccept.From}");
+                }
             }
         }
 
@@ -371,6 +396,25 @@ namespace WalkieTalkie.Chat
 
             var group = new Group { Name = groupName, Leader = _user, Members = new HashSet<User>() };
             Publish(GroupsTopic, group);
+
+            if (_debug)
+            {
+                _logs.Add($"Grupo {group.Name} criado pelo usuário {group.Leader.Username} que agora é seu líder");
+            }
+        }
+
+        public void ShowLogs()
+        {
+            if (_logs.Count == 0)
+            {
+                Console.WriteLine("Nenhuma log encontrado");
+                return;
+            }
+
+            foreach (string log in _logs)
+            {
+                Console.WriteLine(log);
+            }
         }
 
         private void Publish(string topic, object message)

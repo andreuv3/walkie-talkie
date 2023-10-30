@@ -11,12 +11,13 @@ try
     var mosquittoConfiguration = configuration.GetRequiredSection("Mosquitto");
     string host = mosquittoConfiguration["Host"]!;
     int port = int.Parse(mosquittoConfiguration["Port"]!);
+    bool debug = bool.Parse(configuration["Debug"]!);
 
-    var ui = new UserInterface();
+    var ui = new UserInterface(debug);
     ui.ShowTitle();
     string username = ui.RequestUsername();
 
-    var chat = new Chat(host, port);
+    var chat = new Chat(host, port, debug);
     chat.ConnectAs(username);
     chat.SubscribeToBaseTopics();
     chat.GoOnline();
@@ -62,6 +63,11 @@ try
             case ChatAction.SendGroupMessage:
                 break;
             case ChatAction.ManagetGroupRequests:
+                break;
+            case ChatAction.ShowLogs:
+                ui.ShowTitle("[DEPURAÇÃO] Histórico");
+                chat.ShowLogs();
+                ui.ShowGoBackMessage();
                 break;
         }
     }

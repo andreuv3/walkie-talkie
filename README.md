@@ -10,8 +10,12 @@ O projeto foi desenvolvimento utilizando a linguagem de programação C# e o [.N
 
 ## Como executar o projeto
 
-1. Instalar o [.NET 7.0](https://dotnet.microsoft.com/pt-br/download/dotnet/7.0)
-2. Dentro do diretório raiz do projeto, executar o seguinte comando:
+1. Instalar o [Mosquitto](https://mosquitto.org/download/)
+2. Instalar o [.NET 7.0](https://dotnet.microsoft.com/pt-br/download/dotnet/7.0)
+3. Abrir o arquivo ```src/appsettings.json``` e configurar o host e a porta do Mosquitto, assim como habilitar ou desabilitar a flag de debug (a flag de debug permite visualizar os logs gerados pela aplicação);
+4. Dentro do diretório raiz do projeto, executar o seguinte comando:
+
+> Observação: O Mosquitto deve ser configurado sem autenticação.
 
 ```
 dotnet run --project src/WalkieTalkie.csproj

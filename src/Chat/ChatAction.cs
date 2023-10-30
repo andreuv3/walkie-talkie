@@ -2,6 +2,7 @@
 {
     public enum ChatAction
     {
+        ShowLogs = -2,
         Initial = -1,
         Exit,
         ListUsers,
