@@ -9,9 +9,9 @@ namespace WalkieTalkie.Chat
 {
     public class Chat
     {
-        private const string UsersTopic = "USERS";
+        private const string UsersTopic = "USERS/";
         private const string ControlTopicSuffix = "_CONTROL";
-        private const string GroupsTopic = "GROUPS";
+        private const string GroupsTopic = "GROUPS/";
 
         private readonly MqttClient _client;
         private readonly ConversationsDao _conversationsDao;
@@ -37,8 +37,6 @@ namespace WalkieTalkie.Chat
         public void ConnectAs(string username)
         {
             _user.Username = username;
-            _usersDao.LoadStoredUsers(_user.Username);
-            _groupsDao.LoadStoredGroups(_user.Username);
             _ownControlTopic = $"{_user.Username}{ControlTopicSuffix}";
             _client.Connect(_user.Username, "", "", false, 30);
             _client.MqttMsgPublishReceived += (sender, eventArgs) =>
@@ -54,16 +52,19 @@ namespace WalkieTalkie.Chat
                     HandleOwnControlTopicMessage(payload);
                 }
 
-                if (eventArgs.Topic == UsersTopic)
+                if (eventArgs.Topic.StartsWith(UsersTopic))
                 {
                     HandleUsersMessage(payload);
                 }
 
-                if (eventArgs.Topic == GroupsTopic)
+                if (eventArgs.Topic.StartsWith(GroupsTopic))
                 {
                     HandleGroupsMessage(payload);
                 }
             };
+            Subscribe(_ownControlTopic);
+            Subscribe($"{UsersTopic}+");
+            Subscribe($"{GroupsTopic}+");
         }
 
         private void HandleOwnControlTopicMessage(string payload)
@@ -100,63 +101,36 @@ namespace WalkieTalkie.Chat
         private void HandleUsersMessage(string payload)
         {
             var receivedUser = JsonSerializer.Deserialize<User>(payload);
-
-            if (receivedUser == null)
+            if (receivedUser != null)
             {
-                return;
-            }
-
-            var user = _usersDao.FindUser(receivedUser.Username);
-            if (user == null)
-            {
-                _usersDao.AddUser(receivedUser);
-            }
-            else
-            {
-                user.IsOnline = receivedUser.IsOnline;
+                _usersDao.SaveUser(receivedUser);
             }
         }
 
         private void HandleGroupsMessage(string payload)
         {
             var receivedGroup = JsonSerializer.Deserialize<Group>(payload);
-
-            if (receivedGroup == null)
+            if (receivedGroup != null)
             {
-                return;
+                _groupsDao.SaveGroup(receivedGroup);
             }
-
-            var group = _groupsDao.FindGroup(receivedGroup.Name);
-            if (group == null)
-            {
-                _groupsDao.AddGroup(receivedGroup);
-            }
-        }
-
-        public void SubscribeToBaseTopics()
-        {
-            Subscribe(_ownControlTopic);
-            Subscribe(UsersTopic);
-            Subscribe(GroupsTopic);
         }
 
         public void Disconnect()
         {
-            _usersDao.StoreUsers(_user.Username);
-            _groupsDao.StoreGroups(_user.Username);
             _client.Disconnect();
         }
 
         public void GoOnline()
         {
             _user.GoOnline();
-            Publish(UsersTopic, _user);
+            Publish($"{UsersTopic}{_user.Username}", _user, true);
         }
 
         public void GoOffline()
         {
             _user.GoOffline();
-            Publish(UsersTopic, _user);
+            Publish($"{UsersTopic}{_user.Username}", _user, true);
         }
 
         public void ListUsers()
@@ -395,7 +369,7 @@ namespace WalkieTalkie.Chat
             }
 
             var group = new Group { Name = groupName, Leader = _user, Members = new HashSet<User>() };
-            Publish(GroupsTopic, group);
+            Publish($"{GroupsTopic}{group.Name}", group, true);
 
             if (_debug)
             {
@@ -417,10 +391,10 @@ namespace WalkieTalkie.Chat
             }
         }
 
-        private void Publish(string topic, object message)
+        private void Publish(string topic, object message, bool retain = false)
         {
             var payload = BuildPayload(message);
-            _client.Publish(topic, payload, MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE, false);
+            _client.Publish(topic, payload, MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE, retain);
         }
 
         private byte[] BuildPayload(object message)
@@ -431,7 +405,7 @@ namespace WalkieTalkie.Chat
 
         private void Subscribe(string topic)
         {
-            _client.Subscribe(new string[] { topic }, new byte[] { MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE });
+            _client.Subscribe(new string[] { topic }, new byte[] { MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE });
         }
     }
 }

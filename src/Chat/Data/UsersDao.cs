@@ -1,56 +1,32 @@
-﻿using WalkieTalkie.Chat.Messages;
+﻿using System.Collections.Concurrent;
+using WalkieTalkie.Chat.Messages;
 
 namespace WalkieTalkie.Chat.Data
 {
     public class UsersDao
     {
-        private const string Filename = "users.txt";
-        private readonly ICollection<User> _users;
+        private readonly ConcurrentDictionary<string, User> _users;
 
         public UsersDao()
         {
-            _users = new HashSet<User>();
+            _users = new ConcurrentDictionary<string, User>();
         }
 
-        public void LoadStoredUsers(string username)
+        public void SaveUser(User user)
         {
-            if (File.Exists($"{username}_{Filename}"))
-            {    
-                string[] lines = File.ReadAllLines($"{username}_{Filename}");
-                foreach (var line in lines)
-                {
-                    string[] parts = line.Split('|');
-                    _users.Add(new User
-                    {
-                        Username = parts[0],
-                        IsOnline = bool.Parse(parts[1])
-                    });
-                }
+            if (!_users.ContainsKey(user.Username))
+            {
+                _users.TryAdd(user.Username, user);
             }
-        }
-
-        public User? FindUser(string username)
-        {
-            return _users.FirstOrDefault(u => u.Username == username);
-        }
-
-        public void AddUser(User user)
-        {
-            _users.Add(user);
+            else
+            {
+                _users[user.Username] = user;
+            }
         }
 
         public ICollection<User> FindUsers()
         {
-            return _users.OrderBy(u => u.IsOnline).ThenBy(u => u.Username).ToList();
-        }
-
-        public void StoreUsers(string username)
-        {
-            using var writer = new StreamWriter($"{username}_{Filename}");
-            foreach (var user in _users)
-            {
-                writer.WriteLine($"{user.Username}|{user.IsOnline}");
-            }
+            return _users.Select(u => u.Value).OrderBy(u => u.IsOnline).ThenBy(u => u.Username).ToList();
         }
     }
 }

@@ -19,7 +19,6 @@ try
 
     var chat = new Chat(host, port, debug);
     chat.ConnectAs(username);
-    chat.SubscribeToBaseTopics();
     chat.GoOnline();
 
     var option = ChatAction.Initial;
