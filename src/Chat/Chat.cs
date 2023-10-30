@@ -33,6 +33,8 @@ namespace WalkieTalkie.Chat
         public void ConnectAs(string username)
         {
             _user.Username = username;
+            _usersDao.LoadStoredUsers(_user.Username);
+            _groupsDao.LoadStoredGroups(_user.Username);
             _ownControlTopic = $"{_user.Username}{ControlTopicSuffix}";
             _client.Connect(_user.Username, "", "", false, 30);
             _client.MqttMsgPublishReceived += (sender, eventArgs) =>
@@ -130,6 +132,8 @@ namespace WalkieTalkie.Chat
 
         public void Disconnect()
         {
+            _usersDao.StoreUsers(_user.Username);
+            _groupsDao.StoreGroups(_user.Username);
             _client.Disconnect();
         }
 

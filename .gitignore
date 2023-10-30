@@ -6,3 +6,6 @@ bin
 
 # obj folder
 obj
+
+# Text files
+*.txt

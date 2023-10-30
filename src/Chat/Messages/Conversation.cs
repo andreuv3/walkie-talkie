@@ -2,6 +2,7 @@
 {
     public class Conversation
     {
+        private const string Filename = "users.txt";
         public string From { get; set; }
         public string To { get; set; }
         public bool Accepted { get; set; }
