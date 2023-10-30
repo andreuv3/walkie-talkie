@@ -113,6 +113,10 @@ namespace WalkieTalkie.Chat
             if (receivedGroup != null)
             {
                 _groupsDao.SaveGroup(receivedGroup);
+                if (_debug)
+                {
+                    _logs.Add($"Grupo {receivedGroup.Name} recebido, {receivedGroup.Leader.Username} é seu líder");
+                }
             }
         }
 
