@@ -23,6 +23,10 @@ dotnet run --project src/WalkieTalkie.csproj
 
 ## Definições do projeto
 
+A aplicação é um "bate-papo" (chat) que permite que os usuários troquem mensagens entre si de forma direta ou através de grupos. Para um usuário trocar mensagem com outro, ele deverá antes enviar uma solicitação para este usuário. O usuário que receber a solicitação pode aceitá-la ou não. Caso aceite, então o solicitante irá receber uma resposta e eles poderão começar a trocar mensagens. Já para trocar mensagens através de grupos, a aplicação implementa uma funcionalidade para criação de grupos. Um grupo possui um nome (definido no momento de sua criação), um líder e os membros. O líder do grupo é o usuário que realizou a sua criação - é ele também quem define o nome do grupo. Para tornar-se membro de um grupo, um usuário deve enviar uma solicitação para o lídero do grupo. O líder do grupo poderá permitir ou não que o usuário solicitante se torne membro do grupo.
+
+Além disso, é possível visualizar algumas informações, como os usuários existentes (e se estão online ou offline), os grupos (nome, líder e membros) e também, caso o debug estiver habilitado, visualizar todas as ações que ocorreram durante a execução da aplicação, como solicitações de conversa recebidas, aceitadas, recusadas, entre outros.
+
 Para desenvolver a aplicação algumas definições foram feitas, como por exemplo, o formato dos tópicos. As mensagens antes de serem publicadas, são codificadas como objetos JSON. No momento da publicação, o conteúdo JSON da mensagem é convertido em formato binário. Já no recebimento da mensagem, o oposto acontece: a mensagem é recebida no formato binário e convertida em texto, que é decodificado como JSON e, por fim, deserializado como uma instância de um objeto (de acordo com o formato da mensagem).
 
 ### Tópico de controle
