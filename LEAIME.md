@@ -25,7 +25,7 @@ dotnet run --project src/WalkieTalkie.csproj
 
 Para desenvolver a aplicação algumas definições foram feitas, como por exemplo, o formato dos tópicos. As mensagens antes de serem publicadas, são codificadas como objetos JSON. No momento da publicação, o conteúdo JSON da mensagem é convertido em formato binário. Já no recebimento da mensagem, o oposto acontece: a mensagem é recebida no formato binário e convertida em texto, que é decodificado como JSON e, por fim, deserializado como uma instância de um objeto (de acordo com o formato da mensagem).
 
-### Tópico de control
+### Tópico de controle
 
 Foi definido um tópico de controle para cada usuário. Este tópico tem o objetivo de receber novas solicitações de mensagem e aceitá-las ou recusá-las, de acordo com as ações do usuário. Como mencionado, cada usuário possui um tópico de controle, este tópico de controle possui o formato ```<username>_CONTROL```, onde ```<username>``` é o usuário executando a aplicação. Por exemplo, se o usuário X estiver executando a aplicação, seu tópico de controle será o ```X_CONTROL```.
 
