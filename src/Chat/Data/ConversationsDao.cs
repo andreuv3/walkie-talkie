@@ -23,6 +23,11 @@ namespace WalkieTalkie.Chat.Data
             return _conversations.First(c => c.From == from);
         }
 
+        public Conversation? FindConversationByTopic(string topic)
+        {
+            return _conversations.FirstOrDefault(c => c.Topic == topic);
+        }
+
         public void AddConversation(Conversation conversation)
         {
             _conversations.Add(conversation);
@@ -35,7 +40,10 @@ namespace WalkieTalkie.Chat.Data
 
         public ICollection<Conversation> FindAcceptedConversations()
         {
-            return _conversations.Where(c => c.Accepted).ToList();
+            return _conversations
+                .Where(c => c.Accepted)
+                .OrderBy(c => c.LastMessage?.SendedAt)
+                .ToList();
         }
 
         public void RemoveConversation(Conversation conversation)

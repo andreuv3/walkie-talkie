@@ -12,6 +12,7 @@ namespace WalkieTalkie.Chat
         private const string UsersTopic = "USERS/";
         private const string ControlTopicSuffix = "_CONTROL";
         private const string GroupsTopic = "GROUPS/";
+        private const string ConversationTopicPattern = @"(\w+)_(\w+)_(\d+)";
 
         private readonly MqttClient _client;
         private readonly ConversationsDao _conversationsDao;
@@ -21,6 +22,9 @@ namespace WalkieTalkie.Chat
         private readonly User _user;
         private string _ownControlTopic;
         private readonly ICollection<string> _logs;
+
+        private bool Chatting = false;
+        private string ChattingWith = string.Empty;
 
         public Chat(string host, int port, bool debug)
         {
@@ -47,19 +51,29 @@ namespace WalkieTalkie.Chat
                     return;
                 }
 
+                var match = System.Text.RegularExpressions.Regex.Match(eventArgs.Topic, ConversationTopicPattern);
+                if (match.Success)
+                {
+                    HandleConversationMessage(eventArgs.Topic, payload);
+                    return;
+                }
+
                 if (eventArgs.Topic == _ownControlTopic)
                 {
                     HandleOwnControlTopicMessage(payload);
+                    return;
                 }
 
                 if (eventArgs.Topic.StartsWith(UsersTopic))
                 {
                     HandleUsersMessage(payload);
+                    return;
                 }
 
                 if (eventArgs.Topic.StartsWith(GroupsTopic))
                 {
                     HandleGroupsMessage(payload);
+                    return;
                 }
             };
             Subscribe(_ownControlTopic);
@@ -116,6 +130,24 @@ namespace WalkieTalkie.Chat
                 if (_debug)
                 {
                     _logs.Add($"Grupo {receivedGroup.Name} recebido, {receivedGroup.Leader.Username} é seu líder");
+                }
+            }
+        }
+
+        private void HandleConversationMessage(string topic, string payload)
+        {
+            var receivedMessage = JsonSerializer.Deserialize<Message>(payload);
+            if (receivedMessage != null)
+            {
+                var conversation = _conversationsDao.FindConversationByTopic(topic);
+                if (conversation != null && Chatting)
+                {
+                    if (receivedMessage.From != _user.Username && ChattingWith == conversation.With(_user.Username))
+                    {
+                        Console.WriteLine("");
+                        Console.WriteLine($"{conversation.With(_user.Username)} [{receivedMessage.FormattedSendedAt}]: {receivedMessage.Content}");
+                        Console.Write("Você: ");
+                    }
                 }
             }
         }
@@ -303,18 +335,70 @@ namespace WalkieTalkie.Chat
 
             foreach (var conversation in conversations)
             {
-                Console.WriteLine($"*** Conversa com {conversation.With(_user.Username)} ***");
-                var lastMessage = conversation.LastMessage;
-                if (lastMessage == null)
+                string lastMessage = string.Empty;
+                if (conversation.LastMessage != null)
                 {
-                    Console.WriteLine("    Nenhuma mensagem nesta conversa");
+                    lastMessage = $" - {conversation.LastMessage.FormattedSendedAt}";
                 }
-                else
+                Console.WriteLine($"Conversar com {conversation.With(_user.Username)}{lastMessage}");
+            }
+
+            string? to = null;
+            while (string.IsNullOrWhiteSpace(to))
+            {
+                Console.Write("Com quem você deseja conversar? ");
+                to = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(to))
                 {
-                    Console.WriteLine($"    {lastMessage.FormattedSendedAt}");
-                    Console.WriteLine($"    {lastMessage.Content}");
+                    Console.WriteLine("Você precisa informar para quem deseja enviar a mensagem");
+                }
+
+                if (to == _user.Username)
+                {
+                    Console.WriteLine("Você não pode enviar uma mensagem para si mesmo");
+                    to = null;
+                }
+
+                if (!conversations.Any(c => c.With(_user.Username) == to))
+                {
+                    Console.WriteLine($"Você não possui uma conversa com {to}");
+                    to = null;
                 }
             }
+
+            var selectedConversation = conversations.First(c => c.With(_user.Username) == to);
+            StartChatting(selectedConversation.With(_user.Username));
+            Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
+            Console.WriteLine("Caso queira sair da conversa, deixe em branco e pressione enter");
+
+            string? content = null;
+            while (string.IsNullOrWhiteSpace(content))
+            {
+                Console.Write("Você: ");
+                content = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    Console.WriteLine($"Saindo da conversa com {ChattingWith}");
+                    StopChatting();
+                    break;
+                }
+
+                var message = new Message(_user.Username, content);
+                Publish(selectedConversation.Topic!, message);
+                content = null;
+            }
+        }
+
+        private void StartChatting(string with)
+        {
+            Chatting = true;
+            ChattingWith = with;
+        }
+
+        private void StopChatting()
+        {
+            Chatting = false;
+            ChattingWith = string.Empty;
         }
 
         public void ListGroups()
