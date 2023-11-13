@@ -144,7 +144,7 @@ namespace WalkieTalkie.Chat
                 {
                     if (receivedMessage.From != _user.Username && ChattingWith == conversation.With(_user.Username))
                     {
-                        Console.WriteLine("");
+                        Console.Write("\r" + new string(' ', Console.WindowWidth) + "\r");
                         Console.WriteLine($"{conversation.With(_user.Username)} [{receivedMessage.FormattedSendedAt}]: {receivedMessage.Content}");
                         Console.Write("Você: ");
                     }
