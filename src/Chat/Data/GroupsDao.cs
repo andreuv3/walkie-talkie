@@ -33,5 +33,19 @@ namespace WalkieTalkie.Chat.Data
         {
             return _groups.ContainsKey(name);
         }
+
+        public Group FindGroupByName(string groupName)
+        {
+            return _groups[groupName];
+        }
+
+        public ICollection<Group> FindGroupsUserIsPartOf(User user)
+        {
+            return _groups
+                .Where(g => g.Value.ContainsLeader(user) || g.Value.ContainsMember(user))
+                .Select(g => g.Value)
+                .OrderBy(g => g.Name)
+                .ToList();
+        }
     }
 }

@@ -58,10 +58,19 @@ try
                 ui.ShowGoBackMessage("Grupo criado");
                 break;
             case ChatAction.JoinGroup:
+                ui.ShowTitle("PARTICIPAR DE UM GRUPO");
+                chat.JoinGroup();
+                ui.ShowGoBackMessage("");
                 break;
             case ChatAction.SendGroupMessage:
+                ui.ShowTitle("CONVERSAS EM GRUPO");
+                chat.SendGroupMessage();
+                ui.ShowGoBackMessage();
                 break;
             case ChatAction.ManagetGroupRequests:
+                ui.ShowTitle("GERENCIAR GRUPOS");
+                chat.ManageGroups();
+                ui.ShowGoBackMessage();
                 break;
             case ChatAction.ShowLogs:
                 ui.ShowTitle("[DEPURAÇÃO] Histórico");

@@ -33,5 +33,10 @@
         {
             return From == userame ? To : From;
         }
+
+        public bool IsValid()
+        {
+            return !string.IsNullOrWhiteSpace(From) && !string.IsNullOrWhiteSpace(To);
+        }
     }
 }
