@@ -36,7 +36,7 @@ namespace WalkieTalkie.Chat
 
         public void ConnectAs(string username)
         {
-            _user.HasUsernameAndTopic(username, $"{_user.Username}{ControlTopicSuffix}");
+            _user.HasUsernameAndTopic(username, $"{username}{ControlTopicSuffix}");
             _bus.Connect(_user.Username);
             _bus.Receive(ReceiveMessage);
             _bus.Subscribe(_user.Topic);
@@ -156,13 +156,20 @@ namespace WalkieTalkie.Chat
             if (receivedMessage != null)
             {
                 var conversation = _conversationsDao.FindConversationByTopic(topic);
-                if (conversation != null && _status.IsChatting()) //TODO: and if the user is not chatting? the message is lost?
+                if (conversation != null)
                 {
-                    if (receivedMessage.From != _user.Username && _status.IsChattingWith() == conversation.With(_user.Username))
+                    if (receivedMessage.From != _user.Username)
                     {
-                        Console.Write("\r" + new string(' ', Console.WindowWidth) + "\r");
-                        Console.WriteLine($"{conversation.With(_user.Username)} [{receivedMessage.FormattedSendedAt}]: {receivedMessage.Content}");
-                        Console.Write("Você: ");
+                        if (_status.IsChattingWith() == conversation.With(_user.Username))
+                        {
+                            Console.Write("\r" + new string(' ', Console.WindowWidth) + "\r");
+                            Console.WriteLine($"{conversation.With(_user.Username)} [{receivedMessage.FormattedSendedAt}]: {receivedMessage.Content}");
+                            Console.Write("Você: ");
+                        }
+                        else
+                        {
+                            conversation.AddUnredMessage(receivedMessage);
+                        }
                     }
                 }
             }
@@ -380,6 +387,16 @@ namespace WalkieTalkie.Chat
 
             var selectedConversation = conversations.First(c => c.With(_user.Username) == to);
             _status.StartChatting(selectedConversation.With(_user.Username));
+
+            if (selectedConversation.HasUnredMessages())
+            {
+                foreach (var message in selectedConversation.UnreadMessages)
+                {
+                    Console.WriteLine($"{selectedConversation.With(_user.Username)} [{message.FormattedSendedAt}]: {message.Content}");
+                }
+                selectedConversation.ClearUnreadMessages();
+            }
+
             Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
             Console.WriteLine("Caso queira sair da conversa, deixe em branco e pressione enter");
 
