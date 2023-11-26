@@ -49,6 +49,7 @@ try
             case ChatAction.SendMessage:
                 ui.ShowTitle("CONVERSAS");
                 chat.SendMessage();
+                ui.ShowGoBackMessage();
                 break;
             case ChatAction.ManageChatRequests:
                 ui.ShowTitle("SOLICITAÇÕES DE CONVERSA");
@@ -63,7 +64,7 @@ try
             case ChatAction.CreateGroup:
                 ui.ShowTitle("CRIAR GRUPO");
                 chat.CreateGroup();
-                ui.ShowGoBackMessage("Grupo criado");
+                ui.ShowGoBackMessage();
                 break;
             case ChatAction.JoinGroup:
                 ui.ShowTitle("PARTICIPAR DE UM GRUPO");

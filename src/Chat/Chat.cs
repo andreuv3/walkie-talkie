@@ -88,7 +88,7 @@ namespace WalkieTalkie.Chat
                 {
                     conversation = receivedConversation;
                     _conversationsDao.AddConversation(conversation);
-                    RegisterLog($"Solicitação de conversa recebida de {conversation.From} no tóico {_user.Username}{ChatConstants.ControlTopicSuffix}");
+                    RegisterLog($"Solicitação de conversa recebida de {conversation.From} no tópico {_user.Username}{ChatConstants.ControlTopicSuffix}");
                 }
                 else if (receivedConversation.Accepted)
                 {
@@ -207,11 +207,12 @@ namespace WalkieTalkie.Chat
             string? to = null;
             while (string.IsNullOrWhiteSpace(to))
             {
+                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
                 Console.Write("Para quem você deseja enviar a mensagem? ");
                 to = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(to))
                 {
-                    Console.WriteLine("Você precisa informar para quem deseja enviar a mensagem");
+                    return;
                 }
 
                 if (to == _user.Username)
@@ -391,8 +392,8 @@ namespace WalkieTalkie.Chat
                 selectedConversation.ClearUnreadMessages();
             }
 
+            Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
             Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
-            Console.WriteLine("Caso queira sair da conversa, deixe em branco e pressione enter");
 
             string? content = null;
             while (string.IsNullOrWhiteSpace(content))
@@ -452,12 +453,12 @@ namespace WalkieTalkie.Chat
             string? groupName = null;
             while (string.IsNullOrWhiteSpace(groupName))
             {
+                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
                 Console.Write("Qual é o nome do grupo? ");
                 groupName = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(groupName))
                 {
-                    Console.WriteLine("Você precisa informar o nome do grupo");
-                    continue;
+                    return;
                 }
 
                 bool groupAlreadyExists = _groupsDao.GroupAlreadyExists(groupName);
@@ -472,6 +473,7 @@ namespace WalkieTalkie.Chat
             _bus.Publish($"{ChatConstants.GroupsTopic}{group.Name}", group, true);
 
             RegisterLog($"Grupo {group.Name} criado pelo usuário {group.Leader.Username} que agora é seu líder");
+            Console.WriteLine("Grupo criado");
         }
 
         public void JoinGroup()
@@ -479,13 +481,13 @@ namespace WalkieTalkie.Chat
             string? groupName = null;
             while (string.IsNullOrWhiteSpace(groupName))
             {
+                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
                 Console.Write("A qual grupo você gostaria de se juntar? ");
                 groupName = Console.ReadLine();
 
                 if (string.IsNullOrWhiteSpace(groupName))
                 {
-                    Console.WriteLine("Você precisa informar o nome do grupo o qual deseja se juntar");
-                    continue;
+                    return;
                 }
 
                 bool groupExists = _groupsDao.GroupAlreadyExists(groupName);
@@ -541,18 +543,19 @@ namespace WalkieTalkie.Chat
             string? to = null;
             while (string.IsNullOrWhiteSpace(to))
             {
+                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
                 Console.Write("Em qual grupo você deseja conversar? ");
                 to = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(to))
                 {
-                    Console.WriteLine("Você precisa informar para qual grupo deseja enviar a mensagem");
+                    return;
                 }
             }
 
             var selectedGroup = groups.First(g => g.Name == to);
             _status.StartChatting(selectedGroup.Name);
+            Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
             Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
-            Console.WriteLine("Caso queira sair da conversa, deixe em branco e pressione enter");
 
             string? content = null;
             while (string.IsNullOrWhiteSpace(content))
@@ -578,13 +581,13 @@ namespace WalkieTalkie.Chat
             Group? group = null;
             while (string.IsNullOrWhiteSpace(groupName))
             {
+                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
                 Console.Write("Qual grupo você quer gerenciar? ");
                 groupName = Console.ReadLine();
 
                 if (string.IsNullOrWhiteSpace(groupName))
                 {
-                    Console.WriteLine("Você precisa informar o nome do grupo o qual deseja gerenciar");
-                    continue;
+                    return;
                 }
 
                 bool groupExists = _groupsDao.GroupAlreadyExists(groupName);
