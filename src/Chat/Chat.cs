@@ -88,11 +88,9 @@ namespace WalkieTalkie.Chat
 
         private void HandleOwnControlTopicMessage(string payload)
         {
-            System.Console.WriteLine(payload);
             var receivedConversation = JsonSerializer.Deserialize<Conversation>(payload);
             if (receivedConversation != null && receivedConversation.IsValid())
             {
-                System.Console.WriteLine("Ok");
                 var conversation = _conversationsDao.FindConversation(receivedConversation.From, receivedConversation.To);
                 if (conversation == null)
                 {
@@ -121,7 +119,6 @@ namespace WalkieTalkie.Chat
             var receivedGroupRequest = JsonSerializer.Deserialize<GroupRequest>(payload);
             if (receivedGroupRequest != null)
             {
-                System.Console.WriteLine("Solicitção de grupo recebida");
                 if (!_groupsDao.GroupAlreadyExists(receivedGroupRequest.GroupName))
                 {
                     return;
