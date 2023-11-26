@@ -24,7 +24,8 @@ try
     var usersDao = new UsersDao();
     var groupsDao = new GroupsDao();
     var logsDao = new LogsDao();
-    var chat = new Chat(bus, conversationDao, usersDao, groupsDao, logsDao, debug);
+    var logger = new Logger(logsDao);
+    var chat = new Chat(bus, conversationDao, usersDao, groupsDao, debug, logger);
     chat.ConnectAs(username);
     chat.GoOnline();
 

@@ -13,5 +13,10 @@
         {
             _logs.Add(log);
         }
+
+        public string[] GetLogs()
+        {
+            return _logs.ToArray();
+        }
     }
 }

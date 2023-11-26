@@ -17,21 +17,19 @@ namespace WalkieTalkie.Chat
         private readonly ConversationsDao _conversationsDao;
         private readonly UsersDao _usersDao;
         private readonly GroupsDao _groupsDao;
-        private readonly LogsDao _logsDao;
         private readonly bool _debug;
-        private readonly ICollection<string> _logs;
+        private readonly Logger _logger;
         private readonly ChatStatus _status;
         private User _user;
 
-        public Chat(Bus bus, ConversationsDao conversationsDao, UsersDao usersDao, GroupsDao groupsDao, LogsDao logsDao, bool debug)
+        public Chat(Bus bus, ConversationsDao conversationsDao, UsersDao usersDao, GroupsDao groupsDao, bool debug, Logger logger)
         {
             _bus = bus;
             _conversationsDao = conversationsDao;
             _usersDao = usersDao;
             _groupsDao = groupsDao;
-            _logsDao = logsDao;
             _debug = debug;
-            _logs = new List<string>();
+            _logger = logger;
             _status = new ChatStatus();
         }
 
@@ -95,21 +93,18 @@ namespace WalkieTalkie.Chat
                 {
                     conversation = receivedConversation;
                     _conversationsDao.AddConversation(conversation);
-                    if (_debug)
-                    {
-                        _logs.Add($"Solicitação de conversa recebida de {conversation.From} no tóico {_user.Username}{ControlTopicSuffix}");
-                    }
+                    RegisterLog($"Solicitação de conversa recebida de {conversation.From} no tóico {_user.Username}{ControlTopicSuffix}");
                 }
                 else if (receivedConversation.Accepted)
                 {
                     conversation.Accept(receivedConversation.Topic!);
                     _bus.Subscribe(conversation.Topic!);
-                    _logs.Add($"Solicitação de conversa aceita por {conversation.To} através do tópico {conversation.Topic}");
+                    RegisterLog($"Solicitação de conversa aceita por {conversation.To} através do tópico {conversation.Topic}");
                 }
                 else
                 {
                     _conversationsDao.RemoveConversation(conversation);
-                    _logs.Add($"Solicitação de conversa recusada por {conversation.To}");
+                    RegisterLog($"Solicitação de conversa recusada por {conversation.To}");
                 }
 
                 return;
@@ -129,10 +124,7 @@ namespace WalkieTalkie.Chat
                     return;
                 }
 
-                if (_debug)
-                {
-                    _logs.Add($"Solicitação de grupo recebida. O usuário {receivedGroupRequest.Username} pediu para entrar no grupo {receivedGroupRequest.GroupName}");
-                }
+                RegisterLog($"Solicitação de grupo recebida. O usuário {receivedGroupRequest.Username} pediu para entrar no grupo {receivedGroupRequest.GroupName}");
 
                 group.AddRequest(receivedGroupRequest);
             }
@@ -153,10 +145,7 @@ namespace WalkieTalkie.Chat
             if (receivedGroup != null)
             {
                 _groupsDao.SaveGroup(receivedGroup);
-                if (_debug)
-                {
-                    _logs.Add($"Grupo {receivedGroup.Name} recebido, {receivedGroup.Leader.Username} é seu líder");
-                }
+                RegisterLog($"Grupo {receivedGroup.Name} recebido, {receivedGroup.Leader.Username} é seu líder");
             }
         }
 
@@ -236,10 +225,7 @@ namespace WalkieTalkie.Chat
             string topic = $"{to}{ControlTopicSuffix}";
             _bus.Publish(topic, conversation);
 
-            if (_debug)
-            {
-                _logs.Add($"{_user.Username} enviou uma solicitação para {to} através do tópico {topic}");
-            }
+            RegisterLog($"{_user.Username} enviou uma solicitação para {to} através do tópico {topic}");
 
             Console.WriteLine("Solicitação enviada");
         }
@@ -337,10 +323,7 @@ namespace WalkieTalkie.Chat
                 _bus.Publish(controlTopic, conversation);
                 _bus.Subscribe(conversation.Topic!);
 
-                if (_debug)
-                {
-                    _logs.Add($"{_user.Username} aceitou conversar com {requestToAccept.From} através do tópico {chatTopic}");
-                }
+                RegisterLog($"{_user.Username} aceitou conversar com {requestToAccept.From} através do tópico {chatTopic}");
 
                 Console.WriteLine($"Solicitação de {requestToAccept.From} aceita, vocês já podem iniciar uma conversa");
             }
@@ -348,10 +331,7 @@ namespace WalkieTalkie.Chat
             {
                 _conversationsDao.RemoveConversation(conversation);
                 _bus.Publish(controlTopic, conversation);
-                if (_debug)
-                {
-                    _logs.Add($"{_user.Username} recusou conversar com {requestToAccept.From}");
-                }
+                RegisterLog($"{_user.Username} recusou conversar com {requestToAccept.From}");
             }
         }
 
@@ -479,10 +459,7 @@ namespace WalkieTalkie.Chat
             var group = new Group { Name = groupName, Leader = _user, Members = new HashSet<User>() };
             _bus.Publish($"{GroupsTopic}{group.Name}", group, true);
 
-            if (_debug)
-            {
-                _logs.Add($"Grupo {group.Name} criado pelo usuário {group.Leader.Username} que agora é seu líder");
-            }
+            RegisterLog($"Grupo {group.Name} criado pelo usuário {group.Leader.Username} que agora é seu líder");
         }
 
         public void JoinGroup()
@@ -525,10 +502,7 @@ namespace WalkieTalkie.Chat
             var groupRequest = new GroupRequest(group.Name, _user.Username);
             _bus.Publish(topic, groupRequest);
 
-            if (_debug)
-            {
-                _logs.Add($"{_user.Username} enviou uma solicitação para se juntar ao grupo {group.Name} através do tópico {topic}. O líder {group.Leader.Username} irá aprovar ou rejeitar a solicitação");
-            }
+            RegisterLog($"{_user.Username} enviou uma solicitação para se juntar ao grupo {group.Name} através do tópico {topic}. O líder {group.Leader.Username} irá aprovar ou rejeitar a solicitação");
 
             Console.WriteLine("Solicitação enviada");
         }
@@ -699,22 +673,31 @@ namespace WalkieTalkie.Chat
 
                 _bus.Publish($"{GroupsTopic}{group.Name}", group, true);
 
-                if (_debug && option == 1)
+                if (option == 1)
                 {
-                    _logs.Add($"Grupo {group.Name} foi atualizado, {request.Username} agora é um membro");
+                    RegisterLog($"Grupo {group.Name} foi atualizado, {request.Username} agora é um membro");
                 }
+            }
+        }
+
+        private void RegisterLog(string log)
+        {
+            if (_debug)
+            {
+                _logger.Log(log);
             }
         }
 
         public void ShowLogs()
         {
-            if (_logs.Count == 0)
+            var logs = _logger.GetLogs();
+            if (logs.Count == 0)
             {
-                Console.WriteLine("Nenhuma log encontrado");
+                Console.WriteLine("Nenhum log encontrado");
                 return;
             }
 
-            foreach (string log in _logs)
+            foreach (string log in logs)
             {
                 Console.WriteLine(log);
             }
