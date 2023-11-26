@@ -42,7 +42,7 @@ namespace WalkieTalkie.Chat.Data
         {
             return _conversations
                 .Where(c => c.Accepted)
-                .OrderBy(c => c.LastMessage?.SendedAt)
+                .OrderBy(c => c.LastMessageAt)
                 .ToList();
         }
 

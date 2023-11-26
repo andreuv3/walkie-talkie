@@ -140,6 +140,12 @@ namespace WalkieTalkie.Chat
             if (receivedGroup != null)
             {
                 _groupsDao.SaveGroup(receivedGroup);
+                
+                if (receivedGroup.ContainsLeader(_user) || receivedGroup.ContainsMember(_user))
+                {
+                    _bus.Subscribe($"{ChatConstants.GroupsConversationTopic}/{receivedGroup.Name}");
+                }
+
                 RegisterLog($"Grupo {receivedGroup.Name} recebido, {receivedGroup.Leader.Username} é seu líder");
             }
         }
@@ -164,6 +170,8 @@ namespace WalkieTalkie.Chat
                         {
                             conversation.AddUnredMessage(receivedMessage);
                         }
+
+                        conversation.UpdateLastMessageAt();
                     }
                 }
             }
@@ -171,18 +179,35 @@ namespace WalkieTalkie.Chat
 
         private void HandleGroupsConversationMessage(string topic, string payload)
         {
-            string groupName = topic.Substring(topic.IndexOf(ChatConstants.GroupsConversationTopic), topic.Length);
+            string groupName = topic.Replace(ChatConstants.GroupsConversationTopic, "").Trim();
             var receivedMessage = JsonSerializer.Deserialize<Message>(payload);
+            
             var group = _groupsDao.FindGroupByName(groupName);
             if (group == null)
             {
                 return;
             }
+            
             if (!group.ContainsLeader(_user) && !group.ContainsMember(_user))
             {
                 return;
             }
-            // TODO: show message if chatting
+
+            if (receivedMessage != null && receivedMessage.From != _user.Username)
+            {
+                if (_status.IsChattingWith() == group.Name)
+                {
+                    Console.Write("\r" + new string(' ', Console.WindowWidth) + "\r");
+                    Console.WriteLine($"{receivedMessage.From} [{receivedMessage.FormattedSendedAt}]: {receivedMessage.Content}");
+                    Console.Write("Você: ");
+                }
+                else
+                {
+                    group.AddUnredMessage(receivedMessage);
+                }
+
+                group.UpdateLastMessageAt();
+            }
         }
 
         public void GoOnline()
@@ -248,8 +273,8 @@ namespace WalkieTalkie.Chat
                 var request = notAcceptedConversations.ElementAt(i);
                 Console.WriteLine($"{i + 1}. Gerenciar conversa com {request.From}");
             }
-
             Console.WriteLine("0. Voltar para o menu principal");
+
             int option = -1;
             bool validOption = false;
             while (!validOption)
@@ -347,40 +372,46 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
+            int i = 1;
             foreach (var conversation in conversations)
             {
-                string lastMessage = string.Empty;
-                if (conversation.LastMessage != null)
-                {
-                    lastMessage = $" - {conversation.LastMessage.FormattedSendedAt}";
-                }
-                Console.WriteLine($"Conversar com {conversation.With(_user.Username)}{lastMessage}");
+                Console.WriteLine($"{i++}. Conversar com {conversation.With(_user.Username)}");
             }
+            Console.WriteLine("0. Voltar para o menu principal");
 
-            string? to = null;
-            while (string.IsNullOrWhiteSpace(to))
+            int option = -1;
+            bool validOption = false;
+            while (!validOption)
             {
                 Console.Write("Com quem você deseja conversar? ");
-                to = Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(to))
+                string? optionAsText = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(optionAsText))
                 {
-                    Console.WriteLine("Você precisa informar para quem deseja enviar a mensagem");
+                    Console.WriteLine("Você precisa selecionar uma opção.");
+                    continue;
                 }
 
-                if (to == _user.Username)
+                if (!int.TryParse(optionAsText, out option))
                 {
-                    Console.WriteLine("Você não pode enviar uma mensagem para si mesmo");
-                    to = null;
+                    Console.WriteLine("Opção inválida");
+                    continue;
                 }
 
-                if (!conversations.Any(c => c.With(_user.Username) == to))
+                if (option < 0 || option > conversations.Count)
                 {
-                    Console.WriteLine($"Você não possui uma conversa com {to}");
-                    to = null;
+                    Console.WriteLine("Opção inválida");
+                    continue;
                 }
+                
+                validOption = true;
             }
 
-            var selectedConversation = conversations.First(c => c.With(_user.Username) == to);
+            if (option == 0)
+            {
+                return;
+            }
+
+            var selectedConversation = conversations.ElementAt(option - 1);
             _status.StartChatting(selectedConversation.With(_user.Username));
 
             if (selectedConversation.HasUnredMessages())
@@ -471,6 +502,7 @@ namespace WalkieTalkie.Chat
 
             var group = new Group { Name = groupName, Leader = _user, Members = new HashSet<User>() };
             _bus.Publish($"{ChatConstants.GroupsTopic}{group.Name}", group, true);
+            _bus.Subscribe($"{ChatConstants.GroupsConversationTopic}{group.Name}");
 
             RegisterLog($"Grupo {group.Name} criado pelo usuário {group.Leader.Username} que agora é seu líder");
             Console.WriteLine("Grupo criado");
@@ -482,7 +514,7 @@ namespace WalkieTalkie.Chat
             while (string.IsNullOrWhiteSpace(groupName))
             {
                 Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
-                Console.Write("A qual grupo você gostaria de se juntar? ");
+                Console.Write("A qual grupo você deseja se juntar? ");
                 groupName = Console.ReadLine();
 
                 if (string.IsNullOrWhiteSpace(groupName))
@@ -530,30 +562,57 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
+            int i = 1;
             foreach (var group in groups)
             {
-                string lastMessage = string.Empty;
-                if (group.LastMessage != null)
-                {
-                    lastMessage = $" - {group.LastMessage.FormattedSendedAt}";
-                }
-                Console.WriteLine($"Conversar no grupo {group.Name}");
+                Console.WriteLine($"{i++}. Conversar no grupo {group.Name}");
             }
+            Console.WriteLine("0. Voltar para o menu principal");
 
-            string? to = null;
-            while (string.IsNullOrWhiteSpace(to))
+            int option = -1;
+            bool validOption = false;
+            while (!validOption)
             {
-                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
                 Console.Write("Em qual grupo você deseja conversar? ");
-                to = Console.ReadLine();
-                if (string.IsNullOrWhiteSpace(to))
+                string? optionAsText = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(optionAsText))
                 {
-                    return;
+                    Console.WriteLine("Você precisa selecionar uma opção.");
+                    continue;
                 }
+
+                if (!int.TryParse(optionAsText, out option))
+                {
+                    Console.WriteLine("Opção inválida");
+                    continue;
+                }
+
+                if (option < 0 || option > groups.Count)
+                {
+                    Console.WriteLine("Opção inválida");
+                    continue;
+                }
+                
+                validOption = true;
             }
 
-            var selectedGroup = groups.First(g => g.Name == to);
+            if (option == 0)
+            {
+                return;
+            }
+
+            var selectedGroup = groups.ElementAt(option - 1);
             _status.StartChatting(selectedGroup.Name);
+
+            if (selectedGroup.HasUnredMessages())
+            {
+                foreach (var message in selectedGroup.UnreadMessages)
+                {
+                    Console.WriteLine($"{message.From} [{message.FormattedSendedAt}]: {message.Content}");
+                }
+                selectedGroup.ClearUnreadMessages();
+            }
+
             Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
             Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
 
@@ -570,7 +629,7 @@ namespace WalkieTalkie.Chat
                 }
 
                 var message = new Message(_user.Username, content);
-                _bus.Publish($"{ChatConstants.GroupsConversationTopic}/{selectedGroup.Name}", message);
+                _bus.Publish($"{ChatConstants.GroupsConversationTopic}{selectedGroup.Name}", message);
                 content = null;
             }
         }
@@ -582,7 +641,7 @@ namespace WalkieTalkie.Chat
             while (string.IsNullOrWhiteSpace(groupName))
             {
                 Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
-                Console.Write("Qual grupo você quer gerenciar? ");
+                Console.Write("Qual grupo você deseja gerenciar? ");
                 groupName = Console.ReadLine();
 
                 if (string.IsNullOrWhiteSpace(groupName))
@@ -614,10 +673,12 @@ namespace WalkieTalkie.Chat
                 }
             }
 
+            int i = 1;
             foreach (var request in group!.Requests)
             {
-                Console.WriteLine($"1 - Solicitação de {request.Username}");
+                Console.WriteLine($"{i++}. Solicitação de {request.Username}");
             }
+            Console.WriteLine("0. Voltar para o menu principal");
 
             int option = -1;
             bool validOption = false;
@@ -637,10 +698,15 @@ namespace WalkieTalkie.Chat
                     continue;
                 }
 
-                if (option < 1 || option > group.Requests.Count)
+                if (option < 0 || option > group.Requests.Count)
                 {
                     Console.WriteLine("Opção inválida");
                     continue;
+                }
+
+                if (option == 0)
+                {
+                    return;
                 }
 
                 var request = group.Requests.ElementAt(option - 1);

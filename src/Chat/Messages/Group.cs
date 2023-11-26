@@ -9,12 +9,16 @@ namespace WalkieTalkie.Chat.Messages
         public ICollection<GroupRequest> Requests { get; set; }
         public ICollection<Message> Messages { get; set; }
         public Message? LastMessage => Messages.LastOrDefault();
+        public ICollection<Message> UnreadMessages { get; set; }
+        public DateTimeOffset LastMessageAt { get; set; }
 
         public Group()
         {
             Members = new HashSet<User>();
             Requests = new HashSet<GroupRequest>();
             Messages = new LinkedList<Message>();
+            UnreadMessages = new LinkedList<Message>();
+            LastMessageAt = DateTimeOffset.MinValue;
         }
 
         public bool ContainsLeader(User user)
@@ -60,6 +64,26 @@ namespace WalkieTalkie.Chat.Messages
         public bool ContainsPendingRequests()
         {
             return Requests.Any(r => !r.Accepted);
+        }
+
+        public void AddUnredMessage(Message message)
+        {
+            UnreadMessages.Add(message);
+        }
+
+        public bool HasUnredMessages()
+        {
+            return UnreadMessages.Count != 0;
+        }
+
+        public void ClearUnreadMessages()
+        {
+            UnreadMessages.Clear();
+        }
+
+        public void UpdateLastMessageAt()
+        {
+            LastMessageAt = DateTimeOffset.UtcNow;
         }
     }
 }
