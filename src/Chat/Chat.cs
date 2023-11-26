@@ -20,7 +20,7 @@ namespace WalkieTalkie.Chat
         private readonly bool _debug;
         private readonly Logger _logger;
         private readonly ChatStatus _status;
-        private User _user;
+        private readonly User _user;
 
         public Chat(Bus bus, ConversationsDao conversationsDao, UsersDao usersDao, GroupsDao groupsDao, bool debug, Logger logger)
         {
@@ -31,11 +31,12 @@ namespace WalkieTalkie.Chat
             _debug = debug;
             _logger = logger;
             _status = new ChatStatus();
+            _user = User.Nobody();
         }
 
         public void ConnectAs(string username)
         {
-            _user = new User(username, $"{_user.Username}{ControlTopicSuffix}");
+            _user.HasUsernameAndTopic(username, $"{_user.Username}{ControlTopicSuffix}");
             _bus.Connect(_user.Username);
             _bus.Receive(ReceiveMessage);
             _bus.Subscribe(_user.Topic);

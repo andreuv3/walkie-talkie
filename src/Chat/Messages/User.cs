@@ -15,7 +15,7 @@
             Username = username;
         }
 
-        public User(string username, string topic)
+        public void HasUsernameAndTopic(string username, string topic)
         {
             Username = username;
             Topic = topic;
@@ -29,6 +29,16 @@
         public void GoOffline()
         {
             IsOnline = false;
+        }
+
+        public static User Nobody()
+        {
+            return new User
+            {
+                Username = string.Empty,
+                Topic = string.Empty,
+                IsOnline = false,
+            };
         }
     }
 }
