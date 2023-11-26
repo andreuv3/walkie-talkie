@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 using uPLibrary.Networking.M2Mqtt;
 using WalkieTalkie.Chat.Data;
 using WalkieTalkie.Chat.Messages;
@@ -19,33 +20,28 @@ namespace WalkieTalkie.Chat
         private readonly UsersDao _usersDao;
         private readonly GroupsDao _groupsDao;
         private readonly bool _debug;
-        private readonly User _user;
-        private string _ownControlTopic;
         private readonly ICollection<string> _logs;
 
+        private User _user;
         private bool Chatting = false;
         private string ChattingWith = string.Empty;
 
-        public Chat(Bus bus, bool debug)
+        public Chat(Bus bus, ConversationsDao conversationsDao, UsersDao usersDao, GroupsDao groupsDao, bool debug)
         {
             _bus = bus;
-            _conversationsDao = new ConversationsDao();
-            _usersDao = new UsersDao();
-            _groupsDao = new GroupsDao();
+            _conversationsDao = conversationsDao;
+            _usersDao = usersDao;
+            _groupsDao = groupsDao;
             _debug = debug;
-            _user = new User();
-            _ownControlTopic = string.Empty;
             _logs = new List<string>();
         }
 
         public void ConnectAs(string username)
         {
-            _user.Username = username;
-            _ownControlTopic = $"{_user.Username}{ControlTopicSuffix}";
-
+            _user = new User(username, $"{_user.Username}{ControlTopicSuffix}");
             _bus.Connect(_user.Username);
             _bus.Receive(ReceiveMessage);
-            _bus.Subscribe(_ownControlTopic);
+            _bus.Subscribe(_user.Topic);
             _bus.Subscribe($"{UsersTopic}+");
             _bus.Subscribe($"{GroupsTopic}+");
             _bus.Subscribe($"{GroupsConversationTopic}+");
@@ -65,7 +61,7 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
-            if (topic == _ownControlTopic)
+            if (topic == _user.Topic)
             {
                 HandleOwnControlTopicMessage(payload);
                 return;
@@ -109,7 +105,7 @@ namespace WalkieTalkie.Chat
                 }
                 else if (receivedConversation.Accepted)
                 {
-                    conversation.Accept(receivedConversation.Topic);
+                    conversation.Accept(receivedConversation.Topic!);
                     _bus.Subscribe(conversation.Topic!);
                     _logs.Add($"Solicitação de conversa aceita por {conversation.To} através do tópico {conversation.Topic}");
                 }

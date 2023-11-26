@@ -20,7 +20,10 @@ try
     string username = ui.RequestUsername();
 
     var bus = new Bus(host, port);
-    var chat = new Chat(bus, debug);
+    var conversationDao = new ConversationsDao();
+    var usersDao = new UsersDao();
+    var groupsDao = new GroupsDao();
+    var chat = new Chat(bus, conversationDao, usersDao, groupsDao, debug);
     chat.ConnectAs(username);
     chat.GoOnline();
 
