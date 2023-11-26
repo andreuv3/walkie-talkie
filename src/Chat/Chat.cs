@@ -21,6 +21,7 @@ namespace WalkieTalkie.Chat
         private readonly GroupsDao _groupsDao;
         private readonly bool _debug;
         private readonly ICollection<string> _logs;
+        private readonly ChatStatus _status;
 
         private User _user;
         private bool Chatting = false;
@@ -34,6 +35,7 @@ namespace WalkieTalkie.Chat
             _groupsDao = groupsDao;
             _debug = debug;
             _logs = new List<string>();
+            _status = new ChatStatus();
         }
 
         public void ConnectAs(string username)
@@ -399,7 +401,7 @@ namespace WalkieTalkie.Chat
             }
 
             var selectedConversation = conversations.First(c => c.With(_user.Username) == to);
-            StartChatting(selectedConversation.With(_user.Username));
+            _status.StartChatting(selectedConversation.With(_user.Username));
             Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
             Console.WriteLine("Caso queira sair da conversa, deixe em branco e pressione enter");
 
@@ -411,7 +413,7 @@ namespace WalkieTalkie.Chat
                 if (string.IsNullOrWhiteSpace(content))
                 {
                     Console.WriteLine($"Saindo da conversa com {ChattingWith}");
-                    StopChatting();
+                    _status.StopChatting();
                     break;
                 }
 
@@ -419,18 +421,6 @@ namespace WalkieTalkie.Chat
                 _bus.Publish(selectedConversation.Topic!, message);
                 content = null;
             }
-        }
-
-        private void StartChatting(string with)
-        {
-            Chatting = true;
-            ChattingWith = with;
-        }
-
-        private void StopChatting()
-        {
-            Chatting = false;
-            ChattingWith = string.Empty;
         }
 
         public void ListGroups()
@@ -577,7 +567,7 @@ namespace WalkieTalkie.Chat
             }
 
             var selectedGroup = groups.First(g => g.Name == to);
-            StartChatting(selectedGroup.Name);
+            _status.StartChatting(selectedGroup.Name);
             Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
             Console.WriteLine("Caso queira sair da conversa, deixe em branco e pressione enter");
 
@@ -589,7 +579,7 @@ namespace WalkieTalkie.Chat
                 if (string.IsNullOrWhiteSpace(content))
                 {
                     Console.WriteLine($"Saindo da conversa do grupo {ChattingWith}");
-                    StopChatting();
+                    _status.StopChatting();
                     break;
                 }
 
