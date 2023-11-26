@@ -1,9 +1,8 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using uPLibrary.Networking.M2Mqtt;
-using uPLibrary.Networking.M2Mqtt.Messages;
 using WalkieTalkie.Chat.Data;
 using WalkieTalkie.Chat.Messages;
+using WalkieTalkie.EventBus;
 
 namespace WalkieTalkie.Chat
 {
@@ -15,7 +14,7 @@ namespace WalkieTalkie.Chat
         private const string GroupsConversationTopic = "GROUPS_MESSAGES/";
         private const string ConversationTopicPattern = @"(\w+)_(\w+)_(\d+)";
 
-        private readonly MqttClient _client;
+        private readonly Bus _bus;
         private readonly ConversationsDao _conversationsDao;
         private readonly UsersDao _usersDao;
         private readonly GroupsDao _groupsDao;
@@ -27,9 +26,9 @@ namespace WalkieTalkie.Chat
         private bool Chatting = false;
         private string ChattingWith = string.Empty;
 
-        public Chat(string host, int port, bool debug)
+        public Chat(Bus bus, bool debug)
         {
-            _client = new MqttClient(host, port, false, null, null, MqttSslProtocols.None);
+            _bus = bus;
             _conversationsDao = new ConversationsDao();
             _usersDao = new UsersDao();
             _groupsDao = new GroupsDao();
@@ -43,50 +42,52 @@ namespace WalkieTalkie.Chat
         {
             _user.Username = username;
             _ownControlTopic = $"{_user.Username}{ControlTopicSuffix}";
-            _client.Connect(_user.Username, "", "", false, 30);
-            _client.MqttMsgPublishReceived += (sender, eventArgs) =>
+
+            _bus.Connect(_user.Username);
+            _bus.Receive(ReceiveMessage);
+            _bus.Subscribe(_ownControlTopic);
+            _bus.Subscribe($"{UsersTopic}+");
+            _bus.Subscribe($"{GroupsTopic}+");
+            _bus.Subscribe($"{GroupsConversationTopic}+");
+        }
+
+        private void ReceiveMessage(string topic, string? payload)
+        {
+            if (string.IsNullOrWhiteSpace(payload))
             {
-                var payload = UTF8Encoding.UTF8.GetString(eventArgs.Message);
-                if (string.IsNullOrWhiteSpace(payload))
-                {
-                    return;
-                }
+                return;
+            }
 
-                var match = System.Text.RegularExpressions.Regex.Match(eventArgs.Topic, ConversationTopicPattern);
-                if (match.Success)
-                {
-                    HandleConversationMessage(eventArgs.Topic, payload);
-                    return;
-                }
+            var match = System.Text.RegularExpressions.Regex.Match(topic, ConversationTopicPattern);
+            if (match.Success)
+            {
+                HandleConversationMessage(topic, payload);
+                return;
+            }
 
-                if (eventArgs.Topic == _ownControlTopic)
-                {
-                    HandleOwnControlTopicMessage(payload);
-                    return;
-                }
+            if (topic == _ownControlTopic)
+            {
+                HandleOwnControlTopicMessage(payload);
+                return;
+            }
 
-                if (eventArgs.Topic.StartsWith(UsersTopic))
-                {
-                    HandleUsersMessage(payload);
-                    return;
-                }
+            if (topic.StartsWith(UsersTopic))
+            {
+                HandleUsersMessage(payload);
+                return;
+            }
 
-                if (eventArgs.Topic.StartsWith(GroupsTopic))
-                {
-                    HandleGroupsMessage(payload);
-                    return;
-                }
+            if (topic.StartsWith(GroupsTopic))
+            {
+                HandleGroupsMessage(payload);
+                return;
+            }
 
-                if (eventArgs.Topic.StartsWith(GroupsConversationTopic))
-                {
-                    HandleGroupsConversationMessage(eventArgs.Topic, payload);
-                    return;
-                }
-            };
-            Subscribe(_ownControlTopic);
-            Subscribe($"{UsersTopic}+");
-            Subscribe($"{GroupsTopic}+");
-            Subscribe($"{GroupsConversationTopic}+");
+            if (topic.StartsWith(GroupsConversationTopic))
+            {
+                HandleGroupsConversationMessage(topic, payload);
+                return;
+            }
         }
 
         private void HandleOwnControlTopicMessage(string payload)
@@ -109,7 +110,7 @@ namespace WalkieTalkie.Chat
                 else if (receivedConversation.Accepted)
                 {
                     conversation.Accept(receivedConversation.Topic);
-                    Subscribe(conversation.Topic);
+                    _bus.Subscribe(conversation.Topic!);
                     _logs.Add($"Solicitação de conversa aceita por {conversation.To} através do tópico {conversation.Topic}");
                 }
                 else
@@ -201,21 +202,10 @@ namespace WalkieTalkie.Chat
             // TODO: show message if chatting
         }
 
-        public void Disconnect()
-        {
-            _client.Disconnect();
-        }
-
         public void GoOnline()
         {
             _user.GoOnline();
-            Publish($"{UsersTopic}{_user.Username}", _user, true);
-        }
-
-        public void GoOffline()
-        {
-            _user.GoOffline();
-            Publish($"{UsersTopic}{_user.Username}", _user, true);
+            _bus.Publish($"{UsersTopic}{_user.Username}", _user, true);
         }
 
         public void ListUsers()
@@ -252,7 +242,7 @@ namespace WalkieTalkie.Chat
             _conversationsDao.AddConversation(conversation);
 
             string topic = $"{to}{ControlTopicSuffix}";
-            Publish(topic, conversation);
+            _bus.Publish(topic, conversation);
 
             if (_debug)
             {
@@ -352,8 +342,8 @@ namespace WalkieTalkie.Chat
                 
                 conversation.Accept(chatTopic);
 
-                Publish(controlTopic, conversation);
-                Subscribe(conversation.Topic!);
+                _bus.Publish(controlTopic, conversation);
+                _bus.Subscribe(conversation.Topic!);
 
                 if (_debug)
                 {
@@ -365,7 +355,7 @@ namespace WalkieTalkie.Chat
             else
             {
                 _conversationsDao.RemoveConversation(conversation);
-                Publish(controlTopic, conversation);
+                _bus.Publish(controlTopic, conversation);
                 if (_debug)
                 {
                     _logs.Add($"{_user.Username} recusou conversar com {requestToAccept.From}");
@@ -433,7 +423,7 @@ namespace WalkieTalkie.Chat
                 }
 
                 var message = new Message(_user.Username, content);
-                Publish(selectedConversation.Topic!, message);
+                _bus.Publish(selectedConversation.Topic!, message);
                 content = null;
             }
         }
@@ -507,7 +497,7 @@ namespace WalkieTalkie.Chat
             }
 
             var group = new Group { Name = groupName, Leader = _user, Members = new HashSet<User>() };
-            Publish($"{GroupsTopic}{group.Name}", group, true);
+            _bus.Publish($"{GroupsTopic}{group.Name}", group, true);
 
             if (_debug)
             {
@@ -553,7 +543,7 @@ namespace WalkieTalkie.Chat
 
             string topic = $"{group.Leader.Username}{ControlTopicSuffix}";
             var groupRequest = new GroupRequest(group.Name, _user.Username);
-            Publish(topic, groupRequest);
+            _bus.Publish(topic, groupRequest);
 
             if (_debug)
             {
@@ -611,7 +601,7 @@ namespace WalkieTalkie.Chat
                 }
 
                 var message = new Message(_user.Username, content);
-                Publish($"{GroupsConversationTopic}/{selectedGroup.Name}", message);
+                _bus.Publish($"{GroupsConversationTopic}/{selectedGroup.Name}", message);
                 content = null;
             }
         }
@@ -727,7 +717,7 @@ namespace WalkieTalkie.Chat
 
                 group.RemoveRequest(request);
 
-                Publish($"{GroupsTopic}{group.Name}", group, true);
+                _bus.Publish($"{GroupsTopic}{group.Name}", group, true);
 
                 if (_debug && option == 1)
                 {
@@ -749,22 +739,16 @@ namespace WalkieTalkie.Chat
                 Console.WriteLine(log);
             }
         }
-
-        private void Publish(string topic, object message, bool retain = false)
+    
+        public void GoOffline()
         {
-            var payload = BuildPayload(message);
-            _client.Publish(topic, payload, MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE, retain);
+            _user.GoOffline();
+            _bus.Publish($"{UsersTopic}{_user.Username}", _user, true);
         }
 
-        private byte[] BuildPayload(object message)
+        public void Disconnect()
         {
-            string messageAsJson = JsonSerializer.Serialize(message);
-            return Encoding.UTF8.GetBytes(messageAsJson);
-        }
-
-        private void Subscribe(string topic)
-        {
-            _client.Subscribe(new string[] { topic }, new byte[] { MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE });
+            _bus.Disconnect();
         }
     }
 }

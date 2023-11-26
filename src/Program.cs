@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using WalkieTalkie.Chat;
+using WalkieTalkie.Chat.Data;
+using WalkieTalkie.EventBus;
 using WalkieTalkie.UI;
 
 try
@@ -17,7 +19,8 @@ try
     ui.ShowTitle();
     string username = ui.RequestUsername();
 
-    var chat = new Chat(host, port, debug);
+    var bus = new Bus(host, port);
+    var chat = new Chat(bus, debug);
     chat.ConnectAs(username);
     chat.GoOnline();
 
