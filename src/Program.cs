@@ -23,7 +23,8 @@ try
     var conversationDao = new ConversationsDao();
     var usersDao = new UsersDao();
     var groupsDao = new GroupsDao();
-    var chat = new Chat(bus, conversationDao, usersDao, groupsDao, debug);
+    var logsDao = new LogsDao();
+    var chat = new Chat(bus, conversationDao, usersDao, groupsDao, logsDao, debug);
     chat.ConnectAs(username);
     chat.GoOnline();
 

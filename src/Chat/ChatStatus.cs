@@ -2,25 +2,35 @@
 {
     public class ChatStatus
     {
-        private bool Chatting;
-        private string ChattingWith;
+        private bool _chatting;
+        private string _chattingWith;
 
         public ChatStatus()
         {
-            Chatting = false;
-            ChattingWith = string.Empty;
+            _chatting = false;
+            _chattingWith = string.Empty;
         }
 
         public void StartChatting(string with)
         {
-            Chatting = true;
-            ChattingWith = with;
+            _chatting = true;
+            _chattingWith = with;
         }
 
         public void StopChatting()
         {
-            Chatting = false;
-            ChattingWith = string.Empty;
+            _chatting = false;
+            _chattingWith = string.Empty;
+        }
+
+        public bool IsChatting()
+        {
+            return _chatting;
+        }
+
+        public string IsChattingWith()
+        {
+            return new string(_chattingWith);
         }
     }
 }

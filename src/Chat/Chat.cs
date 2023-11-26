@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Text.Json;
-using uPLibrary.Networking.M2Mqtt;
+﻿using System.Text.Json;
 using WalkieTalkie.Chat.Data;
 using WalkieTalkie.Chat.Messages;
 using WalkieTalkie.EventBus;
@@ -19,20 +17,19 @@ namespace WalkieTalkie.Chat
         private readonly ConversationsDao _conversationsDao;
         private readonly UsersDao _usersDao;
         private readonly GroupsDao _groupsDao;
+        private readonly LogsDao _logsDao;
         private readonly bool _debug;
         private readonly ICollection<string> _logs;
         private readonly ChatStatus _status;
-
         private User _user;
-        private bool Chatting = false;
-        private string ChattingWith = string.Empty;
 
-        public Chat(Bus bus, ConversationsDao conversationsDao, UsersDao usersDao, GroupsDao groupsDao, bool debug)
+        public Chat(Bus bus, ConversationsDao conversationsDao, UsersDao usersDao, GroupsDao groupsDao, LogsDao logsDao, bool debug)
         {
             _bus = bus;
             _conversationsDao = conversationsDao;
             _usersDao = usersDao;
             _groupsDao = groupsDao;
+            _logsDao = logsDao;
             _debug = debug;
             _logs = new List<string>();
             _status = new ChatStatus();
@@ -169,9 +166,9 @@ namespace WalkieTalkie.Chat
             if (receivedMessage != null)
             {
                 var conversation = _conversationsDao.FindConversationByTopic(topic);
-                if (conversation != null && Chatting) //TODO: and if the user is not chatting? the message is lost?
+                if (conversation != null && _status.IsChatting()) //TODO: and if the user is not chatting? the message is lost?
                 {
-                    if (receivedMessage.From != _user.Username && ChattingWith == conversation.With(_user.Username))
+                    if (receivedMessage.From != _user.Username && _status.IsChattingWith() == conversation.With(_user.Username))
                     {
                         Console.Write("\r" + new string(' ', Console.WindowWidth) + "\r");
                         Console.WriteLine($"{conversation.With(_user.Username)} [{receivedMessage.FormattedSendedAt}]: {receivedMessage.Content}");
@@ -412,7 +409,7 @@ namespace WalkieTalkie.Chat
                 content = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(content))
                 {
-                    Console.WriteLine($"Saindo da conversa com {ChattingWith}");
+                    Console.WriteLine($"Saindo da conversa com {_status.IsChattingWith()}");
                     _status.StopChatting();
                     break;
                 }
@@ -578,7 +575,7 @@ namespace WalkieTalkie.Chat
                 content = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(content))
                 {
-                    Console.WriteLine($"Saindo da conversa do grupo {ChattingWith}");
+                    Console.WriteLine($"Saindo da conversa do grupo {_status.IsChattingWith()}");
                     _status.StopChatting();
                     break;
                 }
