@@ -7,12 +7,6 @@ namespace WalkieTalkie.Chat
 {
     public class Chat
     {
-        private const string UsersTopic = "USERS/";
-        private const string ControlTopicSuffix = "_CONTROL";
-        private const string GroupsTopic = "GROUPS/";
-        private const string GroupsConversationTopic = "GROUPS_MESSAGES/";
-        private const string ConversationTopicPattern = @"(\w+)_(\w+)_(\d+)";
-
         private readonly Bus _bus;
         private readonly ConversationsDao _conversationsDao;
         private readonly UsersDao _usersDao;
@@ -36,13 +30,13 @@ namespace WalkieTalkie.Chat
 
         public void ConnectAs(string username)
         {
-            _user.HasUsernameAndTopic(username, $"{username}{ControlTopicSuffix}");
+            _user.HasUsernameAndTopic(username, $"{username}{ChatConstants.ControlTopicSuffix}");
             _bus.Connect(_user.Username);
             _bus.Receive(ReceiveMessage);
             _bus.Subscribe(_user.Topic);
-            _bus.Subscribe($"{UsersTopic}+");
-            _bus.Subscribe($"{GroupsTopic}+");
-            _bus.Subscribe($"{GroupsConversationTopic}+");
+            _bus.Subscribe($"{ChatConstants.UsersTopic}+");
+            _bus.Subscribe($"{ChatConstants.GroupsTopic}+");
+            _bus.Subscribe($"{ChatConstants.GroupsConversationTopic}+");
         }
 
         private void ReceiveMessage(string topic, string? payload)
@@ -52,7 +46,7 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
-            var match = System.Text.RegularExpressions.Regex.Match(topic, ConversationTopicPattern);
+            var match = System.Text.RegularExpressions.Regex.Match(topic, ChatConstants.ConversationTopicPattern);
             if (match.Success)
             {
                 HandleConversationMessage(topic, payload);
@@ -65,19 +59,19 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
-            if (topic.StartsWith(UsersTopic))
+            if (topic.StartsWith(ChatConstants.UsersTopic))
             {
                 HandleUsersMessage(payload);
                 return;
             }
 
-            if (topic.StartsWith(GroupsTopic))
+            if (topic.StartsWith(ChatConstants.GroupsTopic))
             {
                 HandleGroupsMessage(payload);
                 return;
             }
 
-            if (topic.StartsWith(GroupsConversationTopic))
+            if (topic.StartsWith(ChatConstants.GroupsConversationTopic))
             {
                 HandleGroupsConversationMessage(topic, payload);
                 return;
@@ -94,7 +88,7 @@ namespace WalkieTalkie.Chat
                 {
                     conversation = receivedConversation;
                     _conversationsDao.AddConversation(conversation);
-                    RegisterLog($"Solicitação de conversa recebida de {conversation.From} no tóico {_user.Username}{ControlTopicSuffix}");
+                    RegisterLog($"Solicitação de conversa recebida de {conversation.From} no tóico {_user.Username}{ChatConstants.ControlTopicSuffix}");
                 }
                 else if (receivedConversation.Accepted)
                 {
@@ -177,7 +171,7 @@ namespace WalkieTalkie.Chat
 
         private void HandleGroupsConversationMessage(string topic, string payload)
         {
-            string groupName = topic.Substring(topic.IndexOf(GroupsConversationTopic), topic.Length);
+            string groupName = topic.Substring(topic.IndexOf(ChatConstants.GroupsConversationTopic), topic.Length);
             var receivedMessage = JsonSerializer.Deserialize<Message>(payload);
             var group = _groupsDao.FindGroupByName(groupName);
             if (group == null)
@@ -194,7 +188,7 @@ namespace WalkieTalkie.Chat
         public void GoOnline()
         {
             _user.GoOnline();
-            _bus.Publish($"{UsersTopic}{_user.Username}", _user, true);
+            _bus.Publish($"{ChatConstants.UsersTopic}{_user.Username}", _user, true);
         }
 
         public void ListUsers()
@@ -230,7 +224,7 @@ namespace WalkieTalkie.Chat
             var conversation = new Conversation (_user.Username, to);
             _conversationsDao.AddConversation(conversation);
 
-            string topic = $"{to}{ControlTopicSuffix}";
+            string topic = $"{to}{ChatConstants.ControlTopicSuffix}";
             _bus.Publish(topic, conversation);
 
             RegisterLog($"{_user.Username} enviou uma solicitação para {to} através do tópico {topic}");
@@ -320,7 +314,7 @@ namespace WalkieTalkie.Chat
                 validOption = true;
             }
 
-            string controlTopic = $"{requestToAccept.From}{ControlTopicSuffix}";
+            string controlTopic = $"{requestToAccept.From}{ChatConstants.ControlTopicSuffix}";
             var conversation = _conversationsDao.FindConversationFrom(requestToAccept.From);
             if (option == 1)
             {
@@ -475,7 +469,7 @@ namespace WalkieTalkie.Chat
             }
 
             var group = new Group { Name = groupName, Leader = _user, Members = new HashSet<User>() };
-            _bus.Publish($"{GroupsTopic}{group.Name}", group, true);
+            _bus.Publish($"{ChatConstants.GroupsTopic}{group.Name}", group, true);
 
             RegisterLog($"Grupo {group.Name} criado pelo usuário {group.Leader.Username} que agora é seu líder");
         }
@@ -516,7 +510,7 @@ namespace WalkieTalkie.Chat
                 return;
             }
 
-            string topic = $"{group.Leader.Username}{ControlTopicSuffix}";
+            string topic = $"{group.Leader.Username}{ChatConstants.ControlTopicSuffix}";
             var groupRequest = new GroupRequest(group.Name, _user.Username);
             _bus.Publish(topic, groupRequest);
 
@@ -573,7 +567,7 @@ namespace WalkieTalkie.Chat
                 }
 
                 var message = new Message(_user.Username, content);
-                _bus.Publish($"{GroupsConversationTopic}/{selectedGroup.Name}", message);
+                _bus.Publish($"{ChatConstants.GroupsConversationTopic}/{selectedGroup.Name}", message);
                 content = null;
             }
         }
@@ -689,7 +683,7 @@ namespace WalkieTalkie.Chat
 
                 group.RemoveRequest(request);
 
-                _bus.Publish($"{GroupsTopic}{group.Name}", group, true);
+                _bus.Publish($"{ChatConstants.GroupsTopic}{group.Name}", group, true);
 
                 if (option == 1)
                 {
@@ -724,7 +718,7 @@ namespace WalkieTalkie.Chat
         public void GoOffline()
         {
             _user.GoOffline();
-            _bus.Publish($"{UsersTopic}{_user.Username}", _user, true);
+            _bus.Publish($"{ChatConstants.UsersTopic}{_user.Username}", _user, true);
         }
 
         public void Disconnect()
