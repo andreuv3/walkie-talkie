@@ -221,9 +221,9 @@ namespace WalkieTalkie.Chat
         private void HandleUserConversationHistoryMessage(string payload)
         {
             var receivedConversation = JsonSerializer.Deserialize<Conversation>(payload);
-            if (receivedConversation != null && receivedConversation.IsValid())
+            if (receivedConversation != null && !string.IsNullOrWhiteSpace(receivedConversation.Topic))
             {
-                var conversation = _conversationsDao.FindConversation(receivedConversation.From, receivedConversation.To);
+                var conversation = _conversationsDao.FindConversationByTopic(receivedConversation.Topic!);
                 if (conversation == null)
                 {
                     _conversationsDao.AddConversation(receivedConversation);
