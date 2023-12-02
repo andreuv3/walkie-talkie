@@ -7,5 +7,6 @@
         public const string GroupsTopic = "GROUPS/";
         public const string GroupsConversationTopic = "GROUPS_MESSAGES/";
         public const string ConversationTopicPattern = @"(\w+)_(\w+)_(\d+)";
+        public const string UserConversationsHistoryTopic = "HISTORY/";
     }
 }

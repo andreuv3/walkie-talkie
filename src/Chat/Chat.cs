@@ -37,17 +37,18 @@ namespace WalkieTalkie.Chat
             _bus.Subscribe($"{ChatConstants.UsersTopic}+");
             _bus.Subscribe($"{ChatConstants.GroupsTopic}+");
             _bus.Subscribe($"{ChatConstants.GroupsConversationTopic}+");
+            _bus.Subscribe($"{ChatConstants.UserConversationsHistoryTopic}{_user.Username}/+");
         }
 
         private void ReceiveMessage(string topic, string? payload)
-        {
+        {            
             if (string.IsNullOrWhiteSpace(payload))
             {
                 return;
             }
 
             var match = System.Text.RegularExpressions.Regex.Match(topic, ChatConstants.ConversationTopicPattern);
-            if (match.Success)
+            if (!topic.StartsWith(ChatConstants.UserConversationsHistoryTopic) && match.Success)
             {
                 HandleConversationMessage(topic, payload);
                 return;
@@ -76,6 +77,12 @@ namespace WalkieTalkie.Chat
                 HandleGroupsConversationMessage(topic, payload);
                 return;
             }
+
+            if (topic.StartsWith($"{ChatConstants.UserConversationsHistoryTopic}{_user.Username}/"))
+            {
+                HandleUserConversationHistoryMessage(payload);
+                return;
+            }
         }
 
         private void HandleOwnControlTopicMessage(string payload)
@@ -93,6 +100,7 @@ namespace WalkieTalkie.Chat
                 else if (receivedConversation.Accepted)
                 {
                     conversation.Accept(receivedConversation.Topic!);
+                    _bus.Publish($"{ChatConstants.UserConversationsHistoryTopic}{_user.Username}/{receivedConversation.Topic}", conversation, true);
                     _bus.Subscribe(conversation.Topic!);
                     RegisterLog($"Solicitação de conversa aceita por {conversation.To} através do tópico {conversation.Topic}");
                 }
@@ -207,6 +215,19 @@ namespace WalkieTalkie.Chat
                 }
 
                 group.UpdateLastMessageAt();
+            }
+        }
+
+        private void HandleUserConversationHistoryMessage(string payload)
+        {
+            var receivedConversation = JsonSerializer.Deserialize<Conversation>(payload);
+            if (receivedConversation != null && receivedConversation.IsValid())
+            {
+                var conversation = _conversationsDao.FindConversation(receivedConversation.From, receivedConversation.To);
+                if (conversation == null)
+                {
+                    _conversationsDao.AddConversation(receivedConversation);
+                }
             }
         }
 
@@ -349,6 +370,7 @@ namespace WalkieTalkie.Chat
                 conversation.Accept(chatTopic);
 
                 _bus.Publish(controlTopic, conversation);
+                _bus.Publish($"{ChatConstants.UserConversationsHistoryTopic}{_user.Username}/{conversation.Topic}", conversation, true);
                 _bus.Subscribe(conversation.Topic!);
 
                 RegisterLog($"{_user.Username} aceitou conversar com {requestToAccept.From} através do tópico {chatTopic}");
