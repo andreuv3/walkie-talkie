@@ -416,6 +416,7 @@ namespace WalkieTalkie.Chat
 
             if (selectedConversation.HasUnredMessages())
             {
+                Console.WriteLine("Mensagens enquanto você estava fora:");
                 foreach (var message in selectedConversation.UnreadMessages)
                 {
                     Console.WriteLine($"{selectedConversation.With(_user.Username)} [{message.FormattedSendedAt}]: {message.Content}");
