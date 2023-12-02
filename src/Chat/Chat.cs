@@ -792,7 +792,11 @@ namespace WalkieTalkie.Chat
 
         public void Disconnect()
         {
-            _bus.Disconnect();
+            try 
+            {
+                _bus.Disconnect();
+            }
+            catch { }
         }
     }
 }
