@@ -58,20 +58,23 @@ namespace WalkieTalkie.UI
         public void ShowMenu()
         {
             ShowTitle();
-            Console.WriteLine("1. Visualizar usuários");
-            Console.WriteLine("2. Solicitar conversa com um usuário");
-            Console.WriteLine("3. Conversar com um usuário");
-            Console.WriteLine("4. Gerenciar conversas");
-            Console.WriteLine("5. Visualizar grupos");
-            Console.WriteLine("6. Criar grupo");
-            Console.WriteLine("7. Participar de um grupo");
-            Console.WriteLine("8. Conversar em um grupo");
-            Console.WriteLine("9. Gerenciar grupos");
+            Console.WriteLine("Usuários");
+            Console.WriteLine("  1. Visualizar usuários");
+            Console.WriteLine("  2. Solicitar conversa com um usuário");
+            Console.WriteLine("  3. Conversar com um usuário");
+            Console.WriteLine("  4. Gerenciar conversas");
+            Console.WriteLine("Grupos");
+            Console.WriteLine("  5. Visualizar grupos");
+            Console.WriteLine("  6. Criar grupo");
+            Console.WriteLine("  7. Participar de um grupo");
+            Console.WriteLine("  8. Conversar em um grupo");
+            Console.WriteLine("  9. Gerenciar grupos");
+            Console.WriteLine("Outras opções");
             if (_debug)
             {
-                Console.WriteLine("-2. Visualizar logs");
+                Console.WriteLine("  -2. Visualizar logs");
             }
-            Console.WriteLine("0. Sair");
+            Console.WriteLine("  0. Sair");
         }
 
         public ChatAction RequestAction()
