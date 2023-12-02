@@ -9,3 +9,6 @@ obj
 
 # Text files
 *.txt
+
+# Build folder
+/dist
