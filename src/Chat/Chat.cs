@@ -232,7 +232,7 @@ namespace WalkieTalkie.Chat
             string? to = null;
             while (string.IsNullOrWhiteSpace(to))
             {
-                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
+                Console.WriteLine("Deixe em branco e pressione enter se desejar cancelar");
                 Console.Write("Para quem você deseja enviar a mensagem? ");
                 to = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(to))
@@ -423,7 +423,7 @@ namespace WalkieTalkie.Chat
                 selectedConversation.ClearUnreadMessages();
             }
 
-            Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
+            Console.WriteLine("Deixe em branco e pressione enter se desejar cancelar");
             Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
 
             string? content = null;
@@ -484,7 +484,7 @@ namespace WalkieTalkie.Chat
             string? groupName = null;
             while (string.IsNullOrWhiteSpace(groupName))
             {
-                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
+                Console.WriteLine("Deixe em branco e pressione enter se desejar cancelar");
                 Console.Write("Qual é o nome do grupo? ");
                 groupName = Console.ReadLine();
                 if (string.IsNullOrWhiteSpace(groupName))
@@ -513,7 +513,7 @@ namespace WalkieTalkie.Chat
             string? groupName = null;
             while (string.IsNullOrWhiteSpace(groupName))
             {
-                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
+                Console.WriteLine("Deixe em branco e pressione enter se desejar cancelar");
                 Console.Write("A qual grupo você deseja se juntar? ");
                 groupName = Console.ReadLine();
 
@@ -613,7 +613,7 @@ namespace WalkieTalkie.Chat
                 selectedGroup.ClearUnreadMessages();
             }
 
-            Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
+            Console.WriteLine("Deixe em branco e pressione enter se desejar cancelar");
             Console.WriteLine("Sempre que quiser enviar uma mensagem, digite e pressione enter");
 
             string? content = null;
@@ -640,7 +640,7 @@ namespace WalkieTalkie.Chat
             Group? group = null;
             while (string.IsNullOrWhiteSpace(groupName))
             {
-                Console.WriteLine("Deixe em branco e pressione enter se desejar voltar ao menu inicial");
+                Console.WriteLine("Deixe em branco e pressione enter se desejar cancelar");
                 Console.Write("Qual grupo você deseja gerenciar? ");
                 groupName = Console.ReadLine();
 
